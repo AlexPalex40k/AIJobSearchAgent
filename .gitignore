@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+Data/*.db
+Data/*.db-shm
+Data/*.db-wal
+!.gitkeep

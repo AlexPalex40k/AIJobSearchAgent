@@ -82,6 +82,18 @@ public sealed class OllamaJobMatchingService(
             }
 
             ValidateOutput(output, configuredModel);
+            var contradictorySkills = FindContradictorySkills(
+                output!.MatchedSkills!,
+                output.MissingRequiredSkills!,
+                output.MissingOptionalSkills!);
+            if (contradictorySkills.Count > 0)
+            {
+                logger.LogWarning(
+                    "Ollama classified the same skills in contradictory categories for vacancy {VacancyId}: {Skills}",
+                    vacancy.Id,
+                    string.Join(", ", contradictorySkills));
+            }
+
             var knownSkills = profile.TechnicalSkills
                 .Where(skill => !string.IsNullOrWhiteSpace(skill.Name))
                 .GroupBy(skill => skill.Name.Trim(), StringComparer.OrdinalIgnoreCase)
@@ -161,6 +173,17 @@ public sealed class OllamaJobMatchingService(
         .Where(skill => !string.IsNullOrWhiteSpace(skill))
         .Select(skill => skill!.Trim())
         .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+
+    private static IReadOnlyList<string> FindContradictorySkills(
+        params IReadOnlyCollection<string?>[] classifications) => classifications
+        .SelectMany((skills, classification) => skills
+            .Where(skill => !string.IsNullOrWhiteSpace(skill))
+            .Select(skill => new { Skill = skill!.Trim(), Classification = classification }))
+        .GroupBy(item => item.Skill, StringComparer.OrdinalIgnoreCase)
+        .Where(group => group.Select(item => item.Classification).Distinct().Count() > 1)
+        .Select(group => group.First().Skill)
+        .OrderBy(skill => skill, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
     private static JobMatchingException CreateFailure(

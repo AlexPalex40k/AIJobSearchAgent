@@ -6,6 +6,7 @@ using AIJobSearchAgent.Application.Exceptions;
 using AIJobSearchAgent.Domain.Entities;
 using AIJobSearchAgent.Domain.Profiles;
 using AIJobSearchAgent.Infrastructure.Matching;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -249,10 +250,38 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.True(observedToken.IsCancellationRequested);
     }
 
-    private static OllamaJobMatchingService CreateService(HttpClient httpClient) => new(
+    [Fact]
+    public async Task EvaluateAsync_LogsContradictorySkillClassificationsWithoutRejectingResult()
+    {
+        using var httpClient = CreateHttpClient((_, _) => Task.FromResult(JsonResponse(CreateOllamaResponse("""
+            {
+              "rating": 3,
+              "matchedSkills": ["C#"],
+              "missingRequiredSkills": [" c# ", "Kubernetes"],
+              "missingOptionalSkills": ["KUBERNETES"],
+              "explanation": "The classifications require review."
+            }
+            """))));
+        var logger = new CapturingLogger<OllamaJobMatchingService>();
+        var service = CreateService(httpClient, logger);
+
+        var result = await service.EvaluateAsync(
+            CreateVacancy(),
+            CreateProfile(),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rating);
+        var warning = Assert.Single(logger.Entries, entry => entry.Level == LogLevel.Warning);
+        Assert.Contains("C#", warning.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Kubernetes", warning.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static OllamaJobMatchingService CreateService(
+        HttpClient httpClient,
+        ILogger<OllamaJobMatchingService>? logger = null) => new(
         httpClient,
         Options.Create(new OllamaOptions()),
-        NullLogger<OllamaJobMatchingService>.Instance);
+        logger ?? NullLogger<OllamaJobMatchingService>.Instance);
 
     private static HttpClient CreateHttpClient(
         Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> handler) => new(new DelegateHandler(handler))
@@ -328,5 +357,30 @@ public sealed class OllamaJobMatchingServiceTests
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken) => handler(request, cancellationToken);
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable BeginScope<TState>(TState state) where TState : notnull => NullScope.Instance;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter) => Entries.Add((logLevel, formatter(state, exception)));
+
+        private sealed class NullScope : IDisposable
+        {
+            public static NullScope Instance { get; } = new();
+
+            public void Dispose()
+            {
+            }
+        }
     }
 }

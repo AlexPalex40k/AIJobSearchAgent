@@ -8,6 +8,8 @@ namespace AIJobSearchAgent.Infrastructure.Persistence;
 
 public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRepository
 {
+    private const int SqliteConstraintUnique = 2067;
+
     public async Task<SaveJobsResult> AddNewAsync(
         IReadOnlyCollection<JobVacancy> vacancies,
         CancellationToken cancellationToken)
@@ -28,36 +30,43 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
             }
         }
 
-        var sources = distinctVacancies.Values.Select(vacancy => vacancy.Source).Distinct().ToArray();
-        var externalIds = distinctVacancies.Values.Select(vacancy => vacancy.ExternalId).Distinct().ToArray();
-        var existingPairs = await dbContext.JobVacancies
-            .AsNoTracking()
-            .Where(vacancy => sources.Contains(vacancy.Source) && externalIds.Contains(vacancy.ExternalId))
-            .Select(vacancy => new { vacancy.Source, vacancy.ExternalId })
-            .ToListAsync(cancellationToken);
-        var existingKeys = existingPairs
-            .Select(pair => CreateKey(pair.Source, pair.ExternalId))
-            .ToHashSet(StringComparer.Ordinal);
+        var existingKeys = await GetExistingKeysAsync(distinctVacancies.Values, cancellationToken);
+        var pendingVacancies = distinctVacancies
+            .Where(pair => !existingKeys.Contains(pair.Key))
+            .Select(pair => pair.Value)
+            .ToList();
+        duplicates += distinctVacancies.Count - pendingVacancies.Count;
 
         var inserted = 0;
-        foreach (var (key, vacancy) in distinctVacancies)
+        while (pendingVacancies.Count > 0)
         {
-            if (existingKeys.Contains(key))
-            {
-                duplicates++;
-                continue;
-            }
-
-            dbContext.JobVacancies.Add(vacancy);
+            dbContext.JobVacancies.AddRange(pendingVacancies);
             try
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
-                inserted++;
+                inserted += pendingVacancies.Count;
+                break;
             }
             catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
             {
-                dbContext.Entry(vacancy).State = EntityState.Detached;
-                duplicates++;
+                foreach (var vacancy in pendingVacancies)
+                {
+                    dbContext.Entry(vacancy).State = EntityState.Detached;
+                }
+
+                var concurrentlyInsertedKeys = await GetExistingKeysAsync(
+                    pendingVacancies,
+                    cancellationToken);
+                if (concurrentlyInsertedKeys.Count == 0)
+                {
+                    throw;
+                }
+
+                duplicates += concurrentlyInsertedKeys.Count;
+                pendingVacancies = pendingVacancies
+                    .Where(vacancy => !concurrentlyInsertedKeys.Contains(
+                        CreateKey(vacancy.Source, vacancy.ExternalId)))
+                    .ToList();
             }
         }
 
@@ -102,6 +111,28 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
 
     private static string CreateKey(string source, string externalId) => $"{source}\u001f{externalId}";
 
+    private async Task<HashSet<string>> GetExistingKeysAsync(
+        IEnumerable<JobVacancy> vacancies,
+        CancellationToken cancellationToken)
+    {
+        var candidates = vacancies.ToArray();
+        var candidateKeys = candidates
+            .Select(vacancy => CreateKey(vacancy.Source, vacancy.ExternalId))
+            .ToHashSet(StringComparer.Ordinal);
+        var sources = candidates.Select(vacancy => vacancy.Source).Distinct().ToArray();
+        var externalIds = candidates.Select(vacancy => vacancy.ExternalId).Distinct().ToArray();
+        var existingPairs = await dbContext.JobVacancies
+            .AsNoTracking()
+            .Where(vacancy => sources.Contains(vacancy.Source) && externalIds.Contains(vacancy.ExternalId))
+            .Select(vacancy => new { vacancy.Source, vacancy.ExternalId })
+            .ToListAsync(cancellationToken);
+
+        return existingPairs
+            .Select(pair => CreateKey(pair.Source, pair.ExternalId))
+            .Where(candidateKeys.Contains)
+            .ToHashSet(StringComparer.Ordinal);
+    }
+
     private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>
-        exception.InnerException is SqliteException { SqliteErrorCode: 19 };
+        exception.InnerException is SqliteException { SqliteExtendedErrorCode: SqliteConstraintUnique };
 }

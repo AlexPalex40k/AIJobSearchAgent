@@ -10,7 +10,9 @@ namespace AIJobSearchAgent.Api.Controllers;
 [Route("api/jobs")]
 public sealed class JobsController(
     ImportJobsUseCase importJobs,
-    GetJobsUseCase getJobs) : ControllerBase
+    GetJobsUseCase getJobs,
+    EvaluateJobUseCase evaluateJob,
+    GetJobEvaluationsUseCase getEvaluations) : ControllerBase
 {
     [HttpPost("import")]
     [ProducesResponseType<ImportSummary>(StatusCodes.Status200OK)]
@@ -55,5 +57,30 @@ public sealed class JobsController(
     {
         var vacancy = await getJobs.GetByIdAsync(id, cancellationToken);
         return vacancy is null ? NotFound() : Ok(vacancy);
+    }
+
+    [HttpPost("{id:guid}/evaluate")]
+    [ProducesResponseType<JobMatchEvaluationDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status500InternalServerError)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status504GatewayTimeout)]
+    public async Task<ActionResult<JobMatchEvaluationDto>> Evaluate(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var evaluation = await evaluateJob.ExecuteAsync(id, cancellationToken);
+        return evaluation is null ? NotFound() : Ok(evaluation);
+    }
+
+    [HttpGet("{id:guid}/evaluations")]
+    [ProducesResponseType<IReadOnlyList<JobMatchEvaluationDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<IReadOnlyList<JobMatchEvaluationDto>>> GetEvaluations(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var evaluations = await getEvaluations.ExecuteAsync(id, cancellationToken);
+        return evaluations is null ? NotFound() : Ok(evaluations);
     }
 }

@@ -1,0 +1,38 @@
+{
+  "name": "Example Candidate",
+  "professionalTitle": "Backend Software Engineer",
+  "yearsProfessionalExperience": 5,
+  "technicalSkills": [
+    {
+      "name": "C#",
+      "yearsExperience": 5,
+      "level": "advanced"
+    },
+    {
+      "name": "ASP.NET Core",
+      "yearsExperience": 4,
+      "level": "advanced"
+    },
+    {
+      "name": "SQL",
+      "yearsExperience": 4,
+      "level": "intermediate"
+    }
+  ],
+  "preferredJobTitles": [
+    "Backend Software Engineer",
+    ".NET Developer"
+  ],
+  "preferredLocations": [
+    "Remote",
+    "Budapest"
+  ],
+  "remoteWorkPreference": "remotePreferred",
+  "spokenLanguages": [
+    {
+      "language": "English",
+      "proficiency": "professional working proficiency"
+    }
+  ],
+  "additionalExperienceOrPreferences": "Interested in backend services, APIs, and maintainable distributed systems."
+}

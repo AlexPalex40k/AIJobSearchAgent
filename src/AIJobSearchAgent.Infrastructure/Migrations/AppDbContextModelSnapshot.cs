@@ -16,6 +16,75 @@ public partial class AppDbContextModelSnapshot : ModelSnapshot
 #pragma warning disable 612, 618
         modelBuilder.HasAnnotation("ProductVersion", "9.0.10");
 
+        modelBuilder.Entity("AIJobSearchAgent.Domain.Entities.JobMatchEvaluation", entity =>
+        {
+            entity.Property<Guid>("Id")
+                .ValueGeneratedOnAdd()
+                .HasColumnType("TEXT");
+
+            entity.Property<DateTimeOffset>("EvaluatedAt")
+                .HasConversion<long>()
+                .HasColumnType("INTEGER");
+
+            entity.Property<int>("EvaluationStatus")
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .HasColumnType("TEXT");
+
+            entity.Property<string>("Explanation")
+                .IsRequired()
+                .HasMaxLength(10000)
+                .HasColumnType("TEXT");
+
+            entity.Property<Guid>("JobVacancyId")
+                .HasColumnType("TEXT");
+
+            entity.Property<List<string>>("MatchedSkills")
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(10000)
+                .HasColumnType("TEXT");
+
+            entity.Property<List<string>>("MissingOptionalSkills")
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(10000)
+                .HasColumnType("TEXT");
+
+            entity.Property<List<string>>("MissingRequiredSkills")
+                .IsRequired()
+                .HasConversion<string>()
+                .HasMaxLength(10000)
+                .HasColumnType("TEXT");
+
+            entity.Property<string>("ModelName")
+                .IsRequired()
+                .HasMaxLength(200)
+                .HasColumnType("TEXT");
+
+            entity.Property<string>("ProfileHash")
+                .IsRequired()
+                .HasMaxLength(64)
+                .HasColumnType("TEXT");
+
+            entity.Property<string>("PromptVersion")
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnType("TEXT");
+
+            entity.Property<int?>("Rating")
+                .HasColumnType("INTEGER");
+
+            entity.HasKey("Id");
+
+            entity.HasIndex("JobVacancyId", "EvaluatedAt");
+
+            entity.ToTable("JobMatchEvaluations", table =>
+                table.HasCheckConstraint(
+                    "CK_JobMatchEvaluations_Rating",
+                    "((EvaluationStatus = 'Succeeded' AND Rating IS NOT NULL AND Rating >= 1 AND Rating <= 5) OR (EvaluationStatus IN ('Failed', 'TimedOut') AND Rating IS NULL))"));
+        });
+
         modelBuilder.Entity("AIJobSearchAgent.Domain.Entities.JobVacancy", entity =>
         {
             entity.Property<Guid>("Id")
@@ -74,6 +143,17 @@ public partial class AppDbContextModelSnapshot : ModelSnapshot
                 .IsUnique();
 
             entity.ToTable("JobVacancies");
+        });
+
+        modelBuilder.Entity("AIJobSearchAgent.Domain.Entities.JobMatchEvaluation", entity =>
+        {
+            entity.HasOne("AIJobSearchAgent.Domain.Entities.JobVacancy", "JobVacancy")
+                .WithMany()
+                .HasForeignKey("JobVacancyId")
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
+
+            entity.Navigation("JobVacancy");
         });
 #pragma warning restore 612, 618
     }

@@ -13,7 +13,8 @@ public sealed class JobMatchEvaluationConfiguration : IEntityTypeConfiguration<J
     {
         builder.ToTable("JobMatchEvaluations", table => table.HasCheckConstraint(
             "CK_JobMatchEvaluations_Rating",
-            "Rating IS NULL OR (Rating >= 1 AND Rating <= 5)"));
+            "((EvaluationStatus = 'Succeeded' AND Rating IS NOT NULL AND Rating >= 1 AND Rating <= 5) OR " +
+            "(EvaluationStatus IN ('Failed', 'TimedOut') AND Rating IS NULL))"));
         builder.HasKey(evaluation => evaluation.Id);
 
         builder.Property(evaluation => evaluation.ProfileHash).IsRequired().HasMaxLength(64);

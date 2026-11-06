@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AIJobSearchAgent.Application.Exceptions;
 using AIJobSearchAgent.Domain.Entities;
 using AIJobSearchAgent.Domain.Profiles;
@@ -119,6 +120,93 @@ public sealed class OllamaJobMatchingServiceTests
             () => malformedService.EvaluateAsync(CreateVacancy(), CreateProfile(), CancellationToken.None));
     }
 
+    [Theory]
+    [InlineData("rating")]
+    [InlineData("matchedSkills")]
+    [InlineData("missingRequiredSkills")]
+    [InlineData("missingOptionalSkills")]
+    [InlineData("explanation")]
+    public async Task EvaluateAsync_RejectsEachMissingRequiredField(string propertyName)
+    {
+        var output = CreateValidStructuredOutput();
+        output.Remove(propertyName);
+
+        await AssertStructuredOutputRejectedAsync(output.ToJsonString());
+    }
+
+    [Theory]
+    [InlineData("matchedSkills")]
+    [InlineData("missingRequiredSkills")]
+    [InlineData("missingOptionalSkills")]
+    public async Task EvaluateAsync_RejectsNullElementsInEverySkillArray(string propertyName)
+    {
+        var output = CreateValidStructuredOutput();
+        output[propertyName] = new JsonArray((JsonNode?)null);
+
+        await AssertStructuredOutputRejectedAsync(output.ToJsonString());
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsUnknownStructuredOutputProperties()
+    {
+        var output = CreateValidStructuredOutput();
+        output["unexpected"] = true;
+
+        await AssertStructuredOutputRejectedAsync(output.ToJsonString());
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsInvalidArrayElementTypes()
+    {
+        var output = CreateValidStructuredOutput();
+        output["matchedSkills"] = new JsonArray(42);
+
+        await AssertStructuredOutputRejectedAsync(output.ToJsonString());
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsSchemaLengthAndArraySizeViolations()
+    {
+        var excessiveExplanation = CreateValidStructuredOutput();
+        excessiveExplanation["explanation"] = new string('x', 10_001);
+        await AssertStructuredOutputRejectedAsync(excessiveExplanation.ToJsonString());
+
+        var excessiveSkill = CreateValidStructuredOutput();
+        excessiveSkill["matchedSkills"] = new JsonArray(new string('x', 101));
+        await AssertStructuredOutputRejectedAsync(excessiveSkill.ToJsonString());
+
+        var excessiveArray = CreateValidStructuredOutput();
+        excessiveArray["matchedSkills"] = new JsonArray(
+            Enumerable.Range(1, 101).Select(index => JsonValue.Create($"Skill {index}")).ToArray<JsonNode?>());
+        await AssertStructuredOutputRejectedAsync(excessiveArray.ToJsonString());
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsIncompleteOllamaResponses()
+    {
+        var content = CreateValidStructuredOutput().ToJsonString();
+        using var notDoneClient = CreateHttpClient((_, _) =>
+            Task.FromResult(JsonResponse(CreateOllamaResponse(content, done: false))));
+        var notDoneService = CreateService(notDoneClient);
+
+        var notDoneException = await Assert.ThrowsAsync<JobMatchingException>(
+            () => notDoneService.EvaluateAsync(CreateVacancy(), CreateProfile(), CancellationToken.None));
+        Assert.Equal(EvaluationStatus.Failed, notDoneException.EvaluationStatus);
+
+        using var missingContentClient = CreateHttpClient((_, _) => Task.FromResult(JsonResponse("""
+            {
+              "model": "qwen3:1.7b",
+              "message": { "role": "assistant" },
+              "done": true
+            }
+            """)));
+        var missingContentService = CreateService(missingContentClient);
+
+        var missingContentException = await Assert.ThrowsAsync<JobMatchingException>(
+            () => missingContentService.EvaluateAsync(CreateVacancy(), CreateProfile(), CancellationToken.None));
+        Assert.Equal(EvaluationStatus.Failed, missingContentException.EvaluationStatus);
+    }
+
     [Fact]
     public async Task EvaluateAsync_MapsTimeoutAndHttpErrorsToFailures()
     {
@@ -178,12 +266,34 @@ public sealed class OllamaJobMatchingServiceTests
         Content = new StringContent(json, Encoding.UTF8, "application/json")
     };
 
-    private static string CreateOllamaResponse(string content) => JsonSerializer.Serialize(new
+    private static string CreateOllamaResponse(string content, bool done = true) => JsonSerializer.Serialize(new
     {
         model = "qwen3:1.7b",
         message = new { role = "assistant", content },
-        done = true
+        done,
+        total_duration = 123
     });
+
+    private static JsonObject CreateValidStructuredOutput() => new()
+    {
+        ["rating"] = 4,
+        ["matchedSkills"] = new JsonArray("C#"),
+        ["missingRequiredSkills"] = new JsonArray(),
+        ["missingOptionalSkills"] = new JsonArray("Kubernetes"),
+        ["explanation"] = "Strong backend match."
+    };
+
+    private static async Task AssertStructuredOutputRejectedAsync(string content)
+    {
+        using var httpClient = CreateHttpClient((_, _) =>
+            Task.FromResult(JsonResponse(CreateOllamaResponse(content))));
+        var service = CreateService(httpClient);
+
+        var exception = await Assert.ThrowsAsync<JobMatchingException>(
+            () => service.EvaluateAsync(CreateVacancy(), CreateProfile(), CancellationToken.None));
+
+        Assert.Equal(EvaluationStatus.Failed, exception.EvaluationStatus);
+    }
 
     private static JobVacancy CreateVacancy(string description = "Build APIs with C# and ASP.NET Core.") => new()
     {

@@ -89,6 +89,47 @@ public sealed class CandidateProfileFileProviderTests
         }
     }
 
+    [Theory]
+    [InlineData("""
+        {
+          "professionalTitle": "Backend Engineer",
+          "yearsProfessionalExperience": 5,
+          "technicalSkills": [{ "name": "C#" }],
+          "unknownProperty": true
+        }
+        """)]
+    [InlineData("""
+        {
+          "professionalTitle": "Backend Engineer",
+          "yearsProfessionalExperience": 5,
+          "technicalSkills": [{ "name": "C#" }],
+          "preferredJobTitle": ["Backend Engineer"]
+        }
+        """)]
+    [InlineData("""
+        {
+          "professionalTitle": "Backend Engineer",
+          "yearsProfessionalExperience": 5,
+          "technicalSkills": [{ "name": "C#", "certification": "Example" }]
+        }
+        """)]
+    public async Task LoadAsync_RejectsUnmappedRootOptionalAndNestedProperties(string json)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "profile.json"), json);
+            var provider = CreateProvider(directory);
+
+            await Assert.ThrowsAsync<CandidateProfileException>(
+                () => provider.LoadAsync(CancellationToken.None));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static CandidateProfileFileProvider CreateProvider(string directory) => new(
         Options.Create(new CandidateProfileOptions { Path = "profile.json" }),
         new CandidateProfileFileLocation(directory));

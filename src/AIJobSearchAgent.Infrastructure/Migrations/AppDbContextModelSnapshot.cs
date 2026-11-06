@@ -82,7 +82,7 @@ public partial class AppDbContextModelSnapshot : ModelSnapshot
             entity.ToTable("JobMatchEvaluations", table =>
                 table.HasCheckConstraint(
                     "CK_JobMatchEvaluations_Rating",
-                    "Rating IS NULL OR (Rating >= 1 AND Rating <= 5)"));
+                    "((EvaluationStatus = 'Succeeded' AND Rating IS NOT NULL AND Rating >= 1 AND Rating <= 5) OR (EvaluationStatus IN ('Failed', 'TimedOut') AND Rating IS NULL))"));
         });
 
         modelBuilder.Entity("AIJobSearchAgent.Domain.Entities.JobVacancy", entity =>

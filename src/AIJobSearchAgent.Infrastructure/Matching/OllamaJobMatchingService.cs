@@ -18,7 +18,12 @@ public sealed class OllamaJobMatchingService(
     ILogger<OllamaJobMatchingService> logger) : IJobMatchingService
 {
     private static readonly JsonElement ResponseSchema = CreateResponseSchema();
-    private static readonly JsonSerializerOptions ResponseSerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions EnvelopeSerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions StructuredOutputSerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = false,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+    };
 
     public async Task<JobMatchResult> EvaluateAsync(
         JobVacancy vacancy,
@@ -55,11 +60,13 @@ public sealed class OllamaJobMatchingService(
             }
 
             var ollamaResponse = await response.Content.ReadFromJsonAsync<OllamaChatResponse>(
-                ResponseSerializerOptions,
+                EnvelopeSerializerOptions,
                 cancellationToken);
-            if (string.IsNullOrWhiteSpace(ollamaResponse?.Message?.Content))
+            if (ollamaResponse is null ||
+                !ollamaResponse.Done ||
+                string.IsNullOrWhiteSpace(ollamaResponse.Message?.Content))
             {
-                throw CreateFailure("Ollama returned a response without structured content.", configuredModel);
+                throw CreateFailure("Ollama returned an incomplete response.", configuredModel);
             }
 
             OllamaMatchOutput? output;
@@ -67,7 +74,7 @@ public sealed class OllamaJobMatchingService(
             {
                 output = JsonSerializer.Deserialize<OllamaMatchOutput>(
                     ollamaResponse.Message.Content,
-                    ResponseSerializerOptions);
+                    StructuredOutputSerializerOptions);
             }
             catch (JsonException exception)
             {
@@ -148,7 +155,7 @@ public sealed class OllamaJobMatchingService(
     }
 
     private static bool HasInvalidSkillList(IReadOnlyCollection<string?> skills) =>
-        skills.Count > 100 || skills.Any(skill => skill?.Length > 100);
+        skills.Count > 100 || skills.Any(skill => string.IsNullOrWhiteSpace(skill) || skill.Length > 100);
 
     private static IReadOnlyList<string> NormalizeSkills(IEnumerable<string?> skills) => skills
         .Where(skill => !string.IsNullOrWhiteSpace(skill))
@@ -172,9 +179,9 @@ public sealed class OllamaJobMatchingService(
           "additionalProperties": false,
           "properties": {
             "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
-            "matchedSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 100 } },
-            "missingRequiredSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 100 } },
-            "missingOptionalSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "maxLength": 100 } },
+            "matchedSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+            "missingRequiredSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+            "missingOptionalSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
             "explanation": { "type": "string", "minLength": 1, "maxLength": 10000 }
           },
           "required": [
@@ -211,6 +218,9 @@ public sealed class OllamaJobMatchingService(
 
         [JsonPropertyName("message")]
         public OllamaResponseMessage? Message { get; init; }
+
+        [JsonPropertyName("done")]
+        public bool Done { get; init; }
     }
 
     private sealed class OllamaResponseMessage
@@ -221,10 +231,24 @@ public sealed class OllamaJobMatchingService(
 
     private sealed class OllamaMatchOutput
     {
+        [JsonRequired]
+        [JsonPropertyName("rating")]
         public int Rating { get; init; }
+
+        [JsonRequired]
+        [JsonPropertyName("matchedSkills")]
         public List<string?>? MatchedSkills { get; init; }
+
+        [JsonRequired]
+        [JsonPropertyName("missingRequiredSkills")]
         public List<string?>? MissingRequiredSkills { get; init; }
+
+        [JsonRequired]
+        [JsonPropertyName("missingOptionalSkills")]
         public List<string?>? MissingOptionalSkills { get; init; }
+
+        [JsonRequired]
+        [JsonPropertyName("explanation")]
         public string? Explanation { get; init; }
     }
 }

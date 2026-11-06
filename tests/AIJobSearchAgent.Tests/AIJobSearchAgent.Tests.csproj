@@ -18,6 +18,10 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
   </ItemGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AIJobSearchAgent.Api\AIJobSearchAgent.Api.csproj" />
     <ProjectReference Include="..\..\src\AIJobSearchAgent.Application\AIJobSearchAgent.Application.csproj" />
     <ProjectReference Include="..\..\src\AIJobSearchAgent.Infrastructure\AIJobSearchAgent.Infrastructure.csproj" />
   </ItemGroup>

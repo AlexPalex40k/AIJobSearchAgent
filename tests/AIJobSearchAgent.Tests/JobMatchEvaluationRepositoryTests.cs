@@ -26,13 +26,17 @@ public sealed class JobMatchEvaluationRepositoryTests
         await dbContext.SaveChangesAsync();
         dbContext.ChangeTracker.Clear();
 
+        await migrator.MigrateAsync("20261030190000_AddJobMatchEvaluations");
+        var repository = new JobMatchEvaluationRepository(dbContext);
+        var older = CreateEvaluation(vacancy.Id, 3, DateTimeOffset.UtcNow.AddMinutes(-1));
+        await repository.AddAsync(older, CancellationToken.None);
+        dbContext.ChangeTracker.Clear();
+
         await migrator.MigrateAsync();
 
         Assert.Equal(1, await dbContext.JobVacancies.CountAsync());
-        var repository = new JobMatchEvaluationRepository(dbContext);
-        var older = CreateEvaluation(vacancy.Id, 3, DateTimeOffset.UtcNow.AddMinutes(-1));
+        Assert.Equal(1, await dbContext.JobMatchEvaluations.CountAsync());
         var newer = CreateEvaluation(vacancy.Id, 4, DateTimeOffset.UtcNow);
-        await repository.AddAsync(older, CancellationToken.None);
         await repository.AddAsync(newer, CancellationToken.None);
 
         var history = await repository.GetByVacancyIdAsync(vacancy.Id, CancellationToken.None);
@@ -41,6 +45,54 @@ public sealed class JobMatchEvaluationRepositoryTests
         Assert.Equal(4, history[0].Rating);
         Assert.Equal(["C#"], history[0].MatchedSkills);
         Assert.Equal(EvaluationStatus.Succeeded, history[0].EvaluationStatus);
+    }
+
+    [Fact]
+    public async Task DatabaseEnforcesEvaluationStatusAndRatingConsistency()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        var vacancy = CreateVacancy();
+
+        await using (var setupContext = new AppDbContext(options))
+        {
+            await setupContext.Database.MigrateAsync();
+            setupContext.JobVacancies.Add(vacancy);
+            await setupContext.SaveChangesAsync();
+        }
+
+        await using (var validContext = new AppDbContext(options))
+        {
+            validContext.JobMatchEvaluations.AddRange(
+                CreateEvaluation(vacancy.Id, 5, DateTimeOffset.UtcNow, EvaluationStatus.Succeeded),
+                CreateEvaluation(vacancy.Id, null, DateTimeOffset.UtcNow, EvaluationStatus.Failed),
+                CreateEvaluation(vacancy.Id, null, DateTimeOffset.UtcNow, EvaluationStatus.TimedOut));
+            await validContext.SaveChangesAsync();
+        }
+
+        await AssertRejectedAsync(options, CreateEvaluation(
+            vacancy.Id,
+            null,
+            DateTimeOffset.UtcNow,
+            EvaluationStatus.Succeeded));
+        await AssertRejectedAsync(options, CreateEvaluation(
+            vacancy.Id,
+            3,
+            DateTimeOffset.UtcNow,
+            EvaluationStatus.Failed));
+        await AssertRejectedAsync(options, CreateEvaluation(
+            vacancy.Id,
+            3,
+            DateTimeOffset.UtcNow,
+            EvaluationStatus.TimedOut));
+        await AssertRejectedAsync(options, CreateEvaluation(
+            vacancy.Id,
+            6,
+            DateTimeOffset.UtcNow,
+            EvaluationStatus.Succeeded));
     }
 
     [Fact]
@@ -69,8 +121,9 @@ public sealed class JobMatchEvaluationRepositoryTests
 
     private static JobMatchEvaluation CreateEvaluation(
         Guid vacancyId,
-        int rating,
-        DateTimeOffset evaluatedAt) => new()
+        int? rating,
+        DateTimeOffset evaluatedAt,
+        EvaluationStatus status = EvaluationStatus.Succeeded) => new()
         {
             JobVacancyId = vacancyId,
             ProfileHash = new string('a', 64),
@@ -81,7 +134,16 @@ public sealed class JobMatchEvaluationRepositoryTests
             MissingRequiredSkills = [],
             MissingOptionalSkills = ["Kubernetes"],
             Explanation = "Test evaluation.",
-            EvaluationStatus = EvaluationStatus.Succeeded,
+            EvaluationStatus = status,
             EvaluatedAt = evaluatedAt
         };
+
+    private static async Task AssertRejectedAsync(
+        DbContextOptions<AppDbContext> options,
+        JobMatchEvaluation evaluation)
+    {
+        await using var dbContext = new AppDbContext(options);
+        dbContext.JobMatchEvaluations.Add(evaluation);
+        await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
+    }
 }

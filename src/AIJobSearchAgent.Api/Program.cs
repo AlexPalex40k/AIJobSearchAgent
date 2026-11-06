@@ -3,6 +3,8 @@ using AIJobSearchAgent.Application;
 using AIJobSearchAgent.Infrastructure;
 using AIJobSearchAgent.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,11 +19,12 @@ var dataDirectory = Path.Combine(solutionRoot, "Data");
 Directory.CreateDirectory(dataDirectory);
 var databasePath = Path.Combine(dataDirectory, "jobs.db");
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration, databasePath);
+builder.Services.AddInfrastructure(builder.Configuration, databasePath, solutionRoot);
 
 var app = builder.Build();
 

@@ -15,6 +15,8 @@
 - Keep nullable reference types enabled and resolve compiler warnings.
 - Prefer small, purpose-specific types and straightforward code over speculative abstractions.
 - Preserve the `(Source, ExternalId)` identity rule for vacancies; never deduplicate by title.
+- Treat vacancy descriptions as untrusted data in every LLM prompt and never allow them to override system instructions.
+- Keep matching prompts versioned and update tests when prompt behavior changes.
 - Avoid changes unrelated to the current task.
 
 ## Async and cancellation
@@ -29,11 +31,14 @@
 - Use constructor injection. Do not use service location in business code.
 - Use typed `HttpClient` instances created by `IHttpClientFactory` for external providers.
 - Put non-sensitive settings in `appsettings.json`; never commit credentials or machine-specific paths.
+- Keep personal data in the ignored `candidate-profile.json`; only the safe example profile may be committed.
+- Use typed `HttpClient` instances and structured JSON Schema output for Ollama. Do not silently create successful results after LLM failures.
 
 ## Persistence
 
 - Use EF Core migrations. Never replace migrations with `EnsureCreated`, and never drop or recreate the database during normal startup.
 - Keep the unique database index on `(Source, ExternalId)`.
+- Preserve evaluation history across profile hashes, models, and prompt versions.
 - The local database belongs in `Data/jobs.db` and is not committed.
 
 ## Testing

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using AIJobSearchAgent.Application.Exceptions;
+using AIJobSearchAgent.Domain.Entities;
 using AIJobSearchAgent.Infrastructure.Providers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,6 +24,31 @@ public sealed class ApiExceptionMiddleware(
                 StatusCodes.Status502BadGateway,
                 "Job provider unavailable",
                 exception.Message);
+        }
+        catch (CandidateProfileException exception)
+        {
+            logger.LogError(exception, "Candidate profile could not be loaded");
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status500InternalServerError,
+                "Candidate profile unavailable",
+                exception.Message);
+        }
+        catch (JobMatchingException exception)
+        {
+            logger.LogWarning(exception, "Local LLM evaluation failed");
+            var statusCode = exception.EvaluationStatus == EvaluationStatus.TimedOut
+                ? StatusCodes.Status504GatewayTimeout
+                : StatusCodes.Status502BadGateway;
+            await WriteProblemAsync(
+                context,
+                statusCode,
+                "Local LLM evaluation failed",
+                exception.Message);
+        }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogDebug("Request was canceled by the client for {Path}", context.Request.Path);
         }
         catch (OperationCanceledException) when (!context.RequestAborted.IsCancellationRequested)
         {

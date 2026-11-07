@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using AIJobSearchAgent.Api.Contracts;
 using AIJobSearchAgent.Application.Models;
+using AIJobSearchAgent.Application.Services;
 using AIJobSearchAgent.Application.UseCases;
 using Microsoft.AspNetCore.Mvc;
 
@@ -38,12 +39,20 @@ public sealed class JobsController(
     [ProducesResponseType<PagedResult<JobVacancyDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<PagedResult<JobVacancyDto>>> Get(
-        [FromQuery, StringLength(100)] string? keyword,
+        [FromQuery, StringLength(KeywordMatcher.MaximumSearchQueryLength)] string? keyword,
         [FromQuery, StringLength(100)] string? source,
         [FromQuery, Range(1, int.MaxValue)] int page = 1,
         [FromQuery, Range(1, 100)] int pageSize = 20,
         CancellationToken cancellationToken = default)
     {
+        if (KeywordMatcher.TokenizeSearchQuery(keyword).Count > KeywordMatcher.MaximumSearchTokenCount)
+        {
+            ModelState.AddModelError(
+                nameof(keyword),
+                $"Search query must contain at most {KeywordMatcher.MaximumSearchTokenCount} tokens.");
+            return ValidationProblem(ModelState);
+        }
+
         var query = new JobQuery(keyword, source, page, pageSize);
         return Ok(await getJobs.ExecuteAsync(query, cancellationToken));
     }

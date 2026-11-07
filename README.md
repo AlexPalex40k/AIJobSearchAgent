@@ -20,7 +20,7 @@ Dependencies point inward: Domain has no project dependencies; Application depen
 
 ## Prerequisites
 
-- .NET 9 SDK
+- .NET 10 SDK (the repository's `global.json` selects stable SDK 10.0.302)
 - Windows, macOS, or Linux; the documented commands use PowerShell
 - Internet access only for package restore and real Arbeitnow imports
 - [Ollama](https://docs.ollama.com/quickstart) and a local model for real job evaluations
@@ -36,17 +36,33 @@ dotnet restore AIJobSearchAgent.sln
 dotnet build AIJobSearchAgent.sln --no-restore
 ```
 
-The repository's `global.json` selects .NET 9 and permits later stable .NET 9 feature bands.
+The repository targets .NET 10 LTS. Its `global.json` selects SDK 10.0.302 and permits later stable .NET 10 feature bands. Direct Microsoft runtime and EF Core packages use the stable 10.0.14 patch release; Swashbuckle uses 10.3.1.
+
+The development package baseline is:
+
+- target framework `net10.0` with C# 12;
+- EF Core, SQLite, and Microsoft.Extensions packages 10.0.14;
+- Microsoft.NET.Test.Sdk 18.11.0;
+- Swashbuckle.AspNetCore 10.3.1;
+- xUnit 2.9.3, xunit.runner.visualstudio 3.1.4, and coverlet.collector 6.0.4.
 
 ## Database and migrations
 
 The API stores data in `Data/jobs.db`. It runs pending EF Core migrations at startup with `MigrateAsync`; it does not drop or recreate the database.
 
+The existing migrations retain their original identifiers and EF Core 9 metadata. EF Core 10 recognizes and applies them unchanged, so databases created by the .NET 9 application remain compatible and preserve vacancy and evaluation history. No schema migration is required solely for the framework upgrade.
+
 To apply migrations explicitly, install the matching EF tool once and run:
 
 ```powershell
-dotnet tool install --global dotnet-ef --version 9.0.10
+dotnet tool install --global dotnet-ef --version 10.0.14
 dotnet ef database update --project src/AIJobSearchAgent.Infrastructure --startup-project src/AIJobSearchAgent.Api
+```
+
+If `dotnet-ef` is already installed from the .NET 9 development environment, update it instead:
+
+```powershell
+dotnet tool update --global dotnet-ef --version 10.0.14
 ```
 
 To create a future migration:
@@ -196,7 +212,7 @@ The import summary counters mean:
 
 ## Tests
 
-Tests use mocked HTTP responses and an in-memory SQLite connection; they never call the live API:
+Tests use mocked HTTP responses and disposable in-memory or temporary-file SQLite databases; they never call the live API:
 
 ```powershell
 dotnet test AIJobSearchAgent.sln

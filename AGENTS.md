@@ -43,6 +43,8 @@
 
 ## Testing
 
+- Use the stable .NET 10 SDK selected by `global.json`. Keep EF Core runtime, SQLite, design-time packages, and `dotnet-ef` on the same 10.0.x patch version.
+- Preserve the existing EF Core 9 migration identifiers and metadata when making framework-only changes; verify migration compatibility with disposable SQLite databases.
 - Add or update tests with every behavior change.
 - Mock external HTTP responses; automated tests must not require a live service.
 - Use SQLite, not the EF in-memory provider, for persistence integration tests.

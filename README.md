@@ -14,6 +14,9 @@ src/
   AIJobSearchAgent.Api/             Controllers and composition root
 tests/
   AIJobSearchAgent.Tests/           Unit and SQLite integration tests
+tools/
+  AIJobSearchAgent.Benchmarks/      Sequential local-LLM benchmark and offline comparison runner
+benchmarks/                         Versioned synthetic dataset and benchmark-only candidate profile
 ```
 
 Dependencies point inward: Domain has no project dependencies; Application depends on Domain; Infrastructure depends on Application and Domain; Api composes the application.
@@ -201,6 +204,75 @@ Invoke-RestMethod "http://localhost:5091/api/jobs/$jobId/evaluations"
 ```
 
 Failed and timed-out LLM attempts are recorded with a `null` rating and a non-success status. The API returns an error response instead of fabricating a successful rating. Evaluations are only started by the single-vacancy POST endpoint; imports and list requests never trigger matching automatically.
+
+## Local LLM benchmarking
+
+The benchmark runner measures the existing Ollama matching implementation without changing its prompt or matching algorithm. It references the existing `IJobMatchingService`, `OllamaJobMatchingService`, `JobMatchingPrompt`, and candidate-profile loader. It runs sequentially by default and needs neither the Web API, SQLite, nor Docker.
+
+The committed inputs are intentionally synthetic:
+
+- `benchmarks/dataset.v1.json` contains 18 fictional vacancies covering strong and incomplete .NET matches, frontend and desktop gaps, seniority mismatches, Python and Java roles, DevOps-heavy work, language and location restrictions, and incomplete or ambiguous descriptions.
+- `benchmarks/candidate-profile.synthetic.json` is a benchmark-only profile and does not read or contain the private `candidate-profile.json`.
+
+Generated files are written under the ignored `benchmarks/results/` directory. Each run creates a new JSON file containing dataset and profile hashes, model and prompt versions, aggregate metrics, individual predictions, latency, and safe failure information. Raw prompts and personal data are not stored.
+
+### Review and approve reference labels
+
+All ratings in `dataset.v1.json` initially have `labelStatus: "provisional"`. They are proposed starting points, not validated ground truth. The runner records provisional expectations for inspection but refuses to include them in accuracy or MAE calculations.
+
+Approve labels case by case using this workflow:
+
+1. Read the synthetic profile, vacancy, proposed rating, and rationale without consulting a model result.
+2. Apply the documented 1–5 rating scale consistently, checking skills, commercial experience, seniority, responsibilities, location, remote compatibility, and languages.
+3. Correct the expected rating, rationale, and optional expected skill lists when needed.
+4. Set `labelStatus` to `approved`, add a non-empty `reviewedBy` value, and add `reviewedAt` as an ISO 8601 timestamp such as `2026-11-07T12:00:00Z`.
+5. Prefer a second human review for disputed or ambiguous cases. Record the agreed judgment in the dataset rather than copying an evaluated model's answer.
+
+Dataset validation rejects approved labels without reviewer metadata and rejects ratings outside 1–5. Editing or approving a label changes the dataset hash, preventing silent comparison with runs that used the earlier judgments. Cases may instead use `labelStatus: "unlabeled"` with a null expected rating.
+
+### Run an experiment
+
+Start Ollama and pull the model first:
+
+```powershell
+ollama pull qwen3:1.7b
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- --model qwen3:1.7b --dataset benchmarks/dataset.v1.json
+```
+
+Available options are:
+
+```text
+--dataset <path>  Dataset path
+--profile <path>  Synthetic benchmark profile path
+--model <name>    Ollama model name
+--output <path>   Generated result directory
+--case <id>       Run one exact stable case ID
+```
+
+For a quick connectivity smoke test that does not establish accuracy:
+
+```powershell
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- --case dotnet-backend-excellent
+```
+
+Run another model with the same dataset and profile, then compare any two or more saved reports without invoking Ollama:
+
+```powershell
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- --model qwen3:4b
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- compare benchmarks/results/run-a.json benchmarks/results/run-b.json
+```
+
+Comparison requires identical dataset and profile hashes. It reports prompt-version differences, aggregate deltas relative to the first run, failure and latency differences, and cases with different successful predictions. It deliberately does not declare a winning model from one metric.
+
+### Interpret benchmark metrics
+
+- Exact and within-one-point accuracy report both the number correct and the number of successfully scored approved labels. Provisional, unlabeled, failed, and timed-out cases are excluded from this denominator.
+- MAE is calculated only over successfully scored approved labels and reports its evaluation count. Lower is better, but it must be read alongside coverage.
+- Failure rate uses every attempted case as its denominator and includes both failed and timed-out evaluations. Successful, failed, and timed-out counts are always reported separately.
+- Rating distribution uses successful evaluations, whether or not their reference labels are approved.
+- Mean and median latency include every completed attempt, including failures and timeouts. P95 is reported only for at least 20 attempts; smaller samples are not considered meaningful for that percentile.
+
+The committed synthetic dataset is useful for prompt regressions, model comparisons, and initial reliability experiments. Eighteen curated fictional cases cannot establish real-world model accuracy, represent production vacancy diversity, or remove subjective disagreement between human reviewers. Future versions should add independently reviewed cases sampled from the intended job market, repeat runs to measure nondeterminism, and analyze errors by category while keeping private candidate data out of Git.
 
 The import summary counters mean:
 

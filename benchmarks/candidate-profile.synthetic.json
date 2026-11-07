@@ -1,0 +1,72 @@
+{
+  "professionalTitle": "Senior Backend Software Engineer",
+  "yearsProfessionalExperience": 6,
+  "technicalSkills": [
+    {
+      "name": "C#",
+      "yearsExperience": 6,
+      "level": "advanced"
+    },
+    {
+      "name": "ASP.NET Core",
+      "yearsExperience": 5,
+      "level": "advanced"
+    },
+    {
+      "name": "Entity Framework Core",
+      "yearsExperience": 4,
+      "level": "advanced"
+    },
+    {
+      "name": "SQL",
+      "yearsExperience": 5,
+      "level": "advanced"
+    },
+    {
+      "name": "REST APIs",
+      "yearsExperience": 5,
+      "level": "advanced"
+    },
+    {
+      "name": "xUnit",
+      "yearsExperience": 3,
+      "level": "intermediate"
+    },
+    {
+      "name": "Docker",
+      "yearsExperience": 2,
+      "level": "intermediate"
+    },
+    {
+      "name": "Azure",
+      "yearsExperience": 1,
+      "level": "basic"
+    },
+    {
+      "name": "JavaScript",
+      "yearsExperience": 1,
+      "level": "basic"
+    }
+  ],
+  "preferredJobTitles": [
+    "Senior Backend Software Engineer",
+    "Senior .NET Developer",
+    "Backend Engineer"
+  ],
+  "preferredLocations": [
+    "Remote within the European Union",
+    "Budapest, Hungary"
+  ],
+  "remoteWorkPreference": "remotePreferred",
+  "spokenLanguages": [
+    {
+      "language": "English",
+      "proficiency": "professional working proficiency"
+    },
+    {
+      "language": "Hungarian",
+      "proficiency": "native"
+    }
+  ],
+  "additionalExperienceOrPreferences": "Experienced in maintainable backend services, code review, mentoring, and CI pipelines. Open to hybrid work in Budapest. Prefers backend-focused roles and has no stated willingness to relocate."
+}

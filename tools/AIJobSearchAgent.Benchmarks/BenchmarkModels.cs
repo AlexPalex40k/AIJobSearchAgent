@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using AIJobSearchAgent.Domain.Entities;
 
 namespace AIJobSearchAgent.Benchmarks;
@@ -23,6 +24,8 @@ public sealed class BenchmarkCase
     public required string Location { get; init; }
     public bool IsRemote { get; init; }
     public required string Description { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? VacancyUrl { get; init; }
     public int? ExpectedRating { get; init; }
     public ReferenceLabelStatus LabelStatus { get; init; }
     public required string Rationale { get; init; }
@@ -67,6 +70,10 @@ public sealed class BenchmarkAggregateMetrics
 public sealed class BenchmarkCaseResult
 {
     public required string CaseId { get; init; }
+    public string VacancyTitle { get; init; } = string.Empty;
+    public string VacancyDescription { get; init; } = string.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? VacancyUrl { get; init; }
     public required IReadOnlyList<string> Tags { get; init; }
     public required ReferenceLabelStatus LabelStatus { get; init; }
     public int? ExpectedRating { get; init; }

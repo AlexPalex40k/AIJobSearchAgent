@@ -9,6 +9,7 @@ public static class BenchmarkResultStore
         string outputDirectory,
         CancellationToken cancellationToken)
     {
+        ValidateVacancyUrls(result);
         Directory.CreateDirectory(outputDirectory);
         var safeModelName = string.Concat(result.ModelName.Select(character =>
             char.IsLetterOrDigit(character) || character is '-' or '_' or '.' ? character : '-'));
@@ -66,6 +67,18 @@ public static class BenchmarkResultStore
             throw new BenchmarkValidationException("Benchmark result is empty or uses an unsupported schema version.");
         }
 
+        ValidateVacancyUrls(result);
+
         return result;
+    }
+
+    private static void ValidateVacancyUrls(BenchmarkRunResult result)
+    {
+        if (result.CaseResults.Any(caseResult =>
+                !BenchmarkDatasetValidator.IsValidOptionalVacancyUrl(caseResult.VacancyUrl)))
+        {
+            throw new BenchmarkValidationException(
+                "Benchmark result contains a vacancyUrl that is not an absolute HTTP or HTTPS URL.");
+        }
     }
 }

@@ -50,6 +50,8 @@ public static partial class BenchmarkDatasetValidator
                 errors.Add($"{benchmarkCase.Id}.description must be present and no longer than 100000 characters");
             }
 
+            ValidateOptionalUrl(benchmarkCase.VacancyUrl, $"{benchmarkCase.Id}.vacancyUrl", errors);
+
             ValidateRequiredText(benchmarkCase.Rationale, $"{benchmarkCase.Id}.rationale", 2_000, errors);
             ValidateLabel(benchmarkCase, errors);
             ValidateTextList(benchmarkCase.ExpectedMatchedSkills, $"{benchmarkCase.Id}.expectedMatchedSkills", errors);
@@ -118,6 +120,24 @@ public static partial class BenchmarkDatasetValidator
             ValidateRequiredText(value, propertyName, 200, errors);
         }
     }
+
+    private static void ValidateOptionalUrl(
+        string? value,
+        string propertyName,
+        ICollection<string> errors)
+    {
+        if (!IsValidOptionalVacancyUrl(value))
+        {
+            errors.Add($"{propertyName} must be an absolute HTTP or HTTPS URL no longer than 2048 characters");
+        }
+    }
+
+    internal static bool IsValidOptionalVacancyUrl(string? value) =>
+        value is null ||
+        value.Length <= 2_048 &&
+        Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+        !string.IsNullOrWhiteSpace(uri.Host) &&
+        uri.Scheme is "http" or "https";
 
     private static void ValidateRequiredText(
         string? value,

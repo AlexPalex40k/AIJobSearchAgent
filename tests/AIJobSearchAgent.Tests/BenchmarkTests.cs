@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using AIJobSearchAgent.Application.Abstractions;
 using AIJobSearchAgent.Application.Models;
 using AIJobSearchAgent.Benchmarks;
@@ -29,6 +31,7 @@ public sealed class BenchmarkTests
         Assert.Equal(18, dataset.Dataset.Cases.Count);
         Assert.All(dataset.Dataset.Cases, benchmarkCase =>
             Assert.Equal(ReferenceLabelStatus.Provisional, benchmarkCase.LabelStatus));
+        Assert.All(dataset.Dataset.Cases, benchmarkCase => Assert.Null(benchmarkCase.VacancyUrl));
         Assert.Equal(64, dataset.DatasetHash.Length);
         Assert.Null(profile.Profile.Name);
         Assert.Equal(64, profile.ProfileHash.Length);
@@ -91,6 +94,40 @@ public sealed class BenchmarkTests
             }));
 
         Assert.Contains("between 1 and 5", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("relative/jobs/123")]
+    [InlineData("ftp://jobs.example.test/123")]
+    [InlineData("")]
+    public void DatasetValidation_RejectsInvalidOptionalVacancyUrls(string vacancyUrl)
+    {
+        var benchmarkCase = CreateCase("invalid-url", vacancyUrl: vacancyUrl);
+
+        var exception = Assert.Throws<BenchmarkValidationException>(() =>
+            BenchmarkDatasetValidator.Validate(new BenchmarkDataset
+            {
+                DatasetVersion = "test-v1",
+                Cases = [benchmarkCase]
+            }));
+
+        Assert.Contains("vacancyUrl", exception.Message);
+    }
+
+    [Fact]
+    public void DatasetValidation_AllowsMissingAndAbsoluteHttpVacancyUrls()
+    {
+        var dataset = new BenchmarkDataset
+        {
+            DatasetVersion = "test-v1",
+            Cases =
+            [
+                CreateCase("synthetic-without-url"),
+                CreateCase("real-with-url", vacancyUrl: "https://careers.example.test/jobs/123")
+            ]
+        };
+
+        BenchmarkDatasetValidator.Validate(dataset);
     }
 
     [Fact]
@@ -192,7 +229,14 @@ public sealed class BenchmarkTests
         var directory = Path.Combine(Path.GetTempPath(), $"benchmark-results-{Guid.NewGuid():N}");
         try
         {
-            var result = CreateRun("dataset-hash", "profile-hash", "model-a", "prompt-v1", 4);
+            const string vacancyUrl = "https://careers.example.test/jobs/123";
+            var result = CreateRun(
+                "dataset-hash",
+                "profile-hash",
+                "model-a",
+                "prompt-v1",
+                4,
+                vacancyUrl);
             var secondResult = CreateRun("dataset-hash", "profile-hash", "model-a", "prompt-v1", 4);
 
             var firstPath = await BenchmarkResultStore.SaveAsync(result, directory, CancellationToken.None);
@@ -202,7 +246,11 @@ public sealed class BenchmarkTests
             Assert.NotEqual(firstPath, secondPath);
             Assert.Equal(result.RunId, loaded.RunId);
             Assert.Equal(result.DatasetHash, loaded.DatasetHash);
-            Assert.Equal(4, Assert.Single(loaded.CaseResults).PredictedRating);
+            var caseResult = Assert.Single(loaded.CaseResults);
+            Assert.Equal(4, caseResult.PredictedRating);
+            Assert.Equal(".NET Engineer", caseResult.VacancyTitle);
+            Assert.Equal("Build C# services.", caseResult.VacancyDescription);
+            Assert.Equal(vacancyUrl, caseResult.VacancyUrl);
         }
         finally
         {
@@ -211,6 +259,56 @@ public sealed class BenchmarkTests
                 Directory.Delete(directory, recursive: true);
             }
         }
+    }
+
+    [Fact]
+    public async Task ResultStore_LoadsExistingResultsWithoutNewVacancyContextFields()
+    {
+        var result = CreateRun("dataset-hash", "profile-hash", "model-a", "prompt-v1", 4);
+        var resultJson = JsonSerializer.SerializeToNode(result, BenchmarkJson.SerializerOptions)!.AsObject();
+        var caseResultJson = resultJson["caseResults"]!.AsArray()[0]!.AsObject();
+        caseResultJson.Remove("vacancyTitle");
+        caseResultJson.Remove("vacancyDescription");
+        caseResultJson.Remove("vacancyUrl");
+        var path = Path.Combine(Path.GetTempPath(), $"legacy-benchmark-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            await File.WriteAllTextAsync(
+                path,
+                resultJson.ToJsonString(BenchmarkJson.SerializerOptions));
+
+            var loaded = await BenchmarkResultStore.LoadAsync(path, CancellationToken.None);
+            var loadedCaseResult = Assert.Single(loaded.CaseResults);
+
+            Assert.Equal(string.Empty, loadedCaseResult.VacancyTitle);
+            Assert.Equal(string.Empty, loadedCaseResult.VacancyDescription);
+            Assert.Null(loadedCaseResult.VacancyUrl);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task ResultStore_RejectsInvalidOptionalVacancyUrl()
+    {
+        var result = CreateRun(
+            "dataset-hash",
+            "profile-hash",
+            "model-a",
+            "prompt-v1",
+            4,
+            "relative/jobs/123");
+
+        var exception = await Assert.ThrowsAsync<BenchmarkValidationException>(() =>
+            BenchmarkResultStore.SaveAsync(
+                result,
+                Path.Combine(Path.GetTempPath(), $"invalid-result-{Guid.NewGuid():N}"),
+                CancellationToken.None));
+
+        Assert.Contains("vacancyUrl", exception.Message);
     }
 
     [Fact]
@@ -256,6 +354,48 @@ public sealed class BenchmarkTests
             cancellationSource.Token));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("https://careers.example.test/jobs/real-role")]
+    public async Task Runner_PreservesVacancyContextAndOptionalUrl(string? vacancyUrl)
+    {
+        JobVacancy? evaluatedVacancy = null;
+        var service = new FakeJobMatchingService((vacancy, _, _) =>
+        {
+            evaluatedVacancy = vacancy;
+            return Task.FromResult(new JobMatchResult(
+                4,
+                ["C#"],
+                [],
+                [],
+                "Good match.",
+                "model-a",
+                "prompt-v1",
+                DateTimeOffset.UtcNow));
+        });
+        var runner = new BenchmarkRunner(service);
+
+        var result = await runner.RunAsync(
+            new BenchmarkDatasetSnapshot(
+                new BenchmarkDataset
+                {
+                    DatasetVersion = "test-v1",
+                    Cases = [CreateCase("case-one", vacancyUrl: vacancyUrl)]
+                },
+                "dataset-hash"),
+            new CandidateProfileSnapshot(CreateProfile(), new string('0', 64)),
+            "model-a",
+            null,
+            CancellationToken.None);
+
+        Assert.NotNull(evaluatedVacancy);
+        Assert.Equal(vacancyUrl ?? string.Empty, evaluatedVacancy.Url);
+        var caseResult = Assert.Single(result.CaseResults);
+        Assert.Equal(".NET Engineer", caseResult.VacancyTitle);
+        Assert.Equal("Build C# services.", caseResult.VacancyDescription);
+        Assert.Equal(vacancyUrl, caseResult.VacancyUrl);
+    }
+
     [Fact]
     public void CommandLine_UsesSelectedModel()
     {
@@ -266,7 +406,8 @@ public sealed class BenchmarkTests
 
     private static BenchmarkCase CreateCase(
         string id,
-        ReferenceLabelStatus labelStatus = ReferenceLabelStatus.Provisional) => new()
+        ReferenceLabelStatus labelStatus = ReferenceLabelStatus.Provisional,
+        string? vacancyUrl = null) => new()
         {
             Id = id,
             VacancyTitle = ".NET Engineer",
@@ -274,6 +415,7 @@ public sealed class BenchmarkTests
             Location = "Remote",
             IsRemote = true,
             Description = "Build C# services.",
+            VacancyUrl = vacancyUrl,
             ExpectedRating = 4,
             LabelStatus = labelStatus,
             Rationale = "Synthetic test rationale."
@@ -287,6 +429,7 @@ public sealed class BenchmarkTests
         Location = benchmarkCase.Location,
         IsRemote = benchmarkCase.IsRemote,
         Description = benchmarkCase.Description,
+        VacancyUrl = benchmarkCase.VacancyUrl,
         ExpectedRating = rating,
         LabelStatus = benchmarkCase.LabelStatus,
         Rationale = benchmarkCase.Rationale
@@ -298,9 +441,13 @@ public sealed class BenchmarkTests
         int? predictedRating,
         ReferenceLabelStatus labelStatus,
         EvaluationStatus status = EvaluationStatus.Succeeded,
-        double latencyMilliseconds = 10) => new()
+        double latencyMilliseconds = 10,
+        string? vacancyUrl = null) => new()
         {
             CaseId = caseId,
+            VacancyTitle = ".NET Engineer",
+            VacancyDescription = "Build C# services.",
+            VacancyUrl = vacancyUrl,
             Tags = [],
             LabelStatus = labelStatus,
             ExpectedRating = expectedRating,
@@ -321,13 +468,15 @@ public sealed class BenchmarkTests
         string profileHash,
         string model,
         string promptVersion,
-        int rating)
+        int rating,
+        string? vacancyUrl = null)
     {
         var caseResult = CreateResult(
             "case-one",
             4,
             rating,
-            ReferenceLabelStatus.Approved);
+            ReferenceLabelStatus.Approved,
+            vacancyUrl: vacancyUrl);
         return new BenchmarkRunResult
         {
             SchemaVersion = BenchmarkRunResult.CurrentSchemaVersion,

@@ -31,7 +31,7 @@ public sealed class BenchmarkRunner(IJobMatchingService matchingService)
                 Location = benchmarkCase.Location,
                 IsRemote = benchmarkCase.IsRemote,
                 Description = benchmarkCase.Description,
-                Url = $"https://benchmark.invalid/jobs/{benchmarkCase.Id}"
+                Url = benchmarkCase.VacancyUrl ?? string.Empty
             };
             var stopwatch = Stopwatch.StartNew();
 
@@ -122,6 +122,9 @@ public sealed class BenchmarkRunner(IJobMatchingService matchingService)
         double latencyMilliseconds) => new()
         {
             CaseId = benchmarkCase.Id,
+            VacancyTitle = benchmarkCase.VacancyTitle,
+            VacancyDescription = benchmarkCase.Description,
+            VacancyUrl = benchmarkCase.VacancyUrl,
             Tags = benchmarkCase.Tags,
             LabelStatus = benchmarkCase.LabelStatus,
             ExpectedRating = benchmarkCase.ExpectedRating,
@@ -145,6 +148,9 @@ public sealed class BenchmarkRunner(IJobMatchingService matchingService)
         string errorMessage) => new()
         {
             CaseId = benchmarkCase.Id,
+            VacancyTitle = benchmarkCase.VacancyTitle,
+            VacancyDescription = benchmarkCase.Description,
+            VacancyUrl = benchmarkCase.VacancyUrl,
             Tags = benchmarkCase.Tags,
             LabelStatus = benchmarkCase.LabelStatus,
             ExpectedRating = benchmarkCase.ExpectedRating,

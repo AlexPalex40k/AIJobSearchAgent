@@ -1,5 +1,6 @@
 using AIJobSearchAgent.Application.Abstractions;
 using AIJobSearchAgent.Application.Models;
+using AIJobSearchAgent.Application.Services;
 using AIJobSearchAgent.Domain.Entities;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -79,12 +80,12 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
     {
         IQueryable<JobVacancy> vacancies = dbContext.JobVacancies.AsNoTracking();
 
-        if (!string.IsNullOrWhiteSpace(query.Keyword))
+        foreach (var token in KeywordMatcher.TokenizeSearchQuery(query.Keyword))
         {
-            var keyword = query.Keyword.Trim().ToLower();
+            var normalizedToken = token.ToLowerInvariant();
             vacancies = vacancies.Where(vacancy =>
-                vacancy.Title.ToLower().Contains(keyword) ||
-                vacancy.Description.ToLower().Contains(keyword));
+                vacancy.Title.ToLower().Contains(normalizedToken) ||
+                vacancy.Description.ToLower().Contains(normalizedToken));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Source))

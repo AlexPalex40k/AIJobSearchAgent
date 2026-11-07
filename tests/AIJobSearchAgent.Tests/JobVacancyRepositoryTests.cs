@@ -168,6 +168,117 @@ public sealed class JobVacancyRepositoryTests
     }
 
     [Fact]
+    public async Task GetAsync_MatchesAllTokensInAnyOrderAcrossTitleAndDescription()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var dbContext = new AppDbContext(options);
+        await dbContext.Database.MigrateAsync();
+        var titleMatch = CreateVacancy(
+            "title-match",
+            "Arbeitnow",
+            "Senior Software Engineer (.NET/C#)",
+            "Build reliable services.");
+        var distributedMatch = CreateVacancy(
+            "distributed-match",
+            "Arbeitnow",
+            "Platform Engineer",
+            "Design and build .NET services.");
+        var missingToken = CreateVacancy(
+            "missing-token",
+            "Arbeitnow",
+            ".NET Developer",
+            "Build backend services.");
+        dbContext.JobVacancies.AddRange(titleMatch, distributedMatch, missingToken);
+        await dbContext.SaveChangesAsync();
+        var repository = new JobVacancyRepository(dbContext);
+
+        var result = await repository.GetAsync(
+            new JobQuery(".net engineer", null, 1, 20),
+            CancellationToken.None);
+        var reversedCaseResult = await repository.GetAsync(
+            new JobQuery("EnGiNeEr .NeT", null, 1, 20),
+            CancellationToken.None);
+        var normalizedWhitespaceResult = await repository.GetAsync(
+            new JobQuery("  \t.net\r\n engineer  ", null, 1, 20),
+            CancellationToken.None);
+        var missingRequiredTokenResult = await repository.GetAsync(
+            new JobQuery(".net engineer python", null, 1, 20),
+            CancellationToken.None);
+
+        var expectedIds = new HashSet<Guid> { titleMatch.Id, distributedMatch.Id };
+        Assert.Equal(2, result.TotalCount);
+        Assert.True(expectedIds.SetEquals(result.Items.Select(vacancy => vacancy.Id)));
+        Assert.True(expectedIds.SetEquals(reversedCaseResult.Items.Select(vacancy => vacancy.Id)));
+        Assert.True(expectedIds.SetEquals(normalizedWhitespaceResult.Items.Select(vacancy => vacancy.Id)));
+        Assert.Empty(missingRequiredTokenResult.Items);
+        Assert.Equal(0, missingRequiredTokenResult.TotalCount);
+    }
+
+    [Fact]
+    public async Task GetAsync_PreservesTechnicalKeywordPunctuation()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var dbContext = new AppDbContext(options);
+        await dbContext.Database.MigrateAsync();
+        var vacancy = CreateVacancy(
+            "technical-keywords",
+            "Arbeitnow",
+            "C# and C++ Engineer",
+            "Develop services on .NET.");
+        dbContext.JobVacancies.Add(vacancy);
+        await dbContext.SaveChangesAsync();
+        var repository = new JobVacancyRepository(dbContext);
+
+        var result = await repository.GetAsync(
+            new JobQuery("C# C++ .NET", null, 1, 20),
+            CancellationToken.None);
+
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(vacancy.Id, Assert.Single(result.Items).Id);
+    }
+
+    [Fact]
+    public async Task GetAsync_AppliesPaginationAfterTokenFilteringAndKeepsAccurateTotalCount()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var dbContext = new AppDbContext(options);
+        await dbContext.Database.MigrateAsync();
+        dbContext.JobVacancies.AddRange(
+            CreateVacancy("match-1", "Arbeitnow", ".NET Engineer", "Backend services."),
+            CreateVacancy("match-2", "Arbeitnow", "Platform Engineer", ".NET services."),
+            CreateVacancy("match-3", "Other", "Lead .NET Engineer", "Architecture."),
+            CreateVacancy("not-a-match", "Arbeitnow", "Python Engineer", "Data services."));
+        await dbContext.SaveChangesAsync();
+        var repository = new JobVacancyRepository(dbContext);
+
+        var firstPage = await repository.GetAsync(
+            new JobQuery(".net engineer", null, 1, 2),
+            CancellationToken.None);
+        var secondPage = await repository.GetAsync(
+            new JobQuery(".net engineer", null, 2, 2),
+            CancellationToken.None);
+
+        Assert.Equal(3, firstPage.TotalCount);
+        Assert.Equal(3, secondPage.TotalCount);
+        Assert.Equal(2, firstPage.Items.Count);
+        Assert.Single(secondPage.Items);
+        Assert.Empty(firstPage.Items.Select(vacancy => vacancy.Id).Intersect(
+            secondPage.Items.Select(vacancy => vacancy.Id)));
+    }
+
+    [Fact]
     public async Task UniqueIndex_RejectsDuplicatePairWhenBypassingRepository()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -185,18 +296,23 @@ public sealed class JobVacancyRepositoryTests
         await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync());
     }
 
-    private static JobVacancy CreateVacancy(string externalId, string source) => new()
-    {
-        ExternalId = externalId,
-        Source = source,
-        Title = ".NET Developer",
-        Company = "Example",
-        Location = "Remote",
-        IsRemote = true,
-        Description = "Backend developer role",
-        Url = $"https://example.test/jobs/{externalId}",
-        PublishedAt = DateTimeOffset.UtcNow
-    };
+    private static JobVacancy CreateVacancy(
+        string externalId,
+        string source,
+        string title = ".NET Developer",
+        string description = "Backend developer role") =>
+        new()
+        {
+            ExternalId = externalId,
+            Source = source,
+            Title = title,
+            Company = "Example",
+            Location = "Remote",
+            IsRemote = true,
+            Description = description,
+            Url = $"https://example.test/jobs/{externalId}",
+            PublishedAt = DateTimeOffset.UtcNow
+        };
 
     private sealed class SaveChangesCallInterceptor : SaveChangesInterceptor
     {

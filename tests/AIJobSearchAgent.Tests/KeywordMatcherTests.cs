@@ -34,6 +34,14 @@ public sealed class KeywordMatcherTests
         Assert.Empty(KeywordMatcher.NormalizeKeywords([" ", "\t"]));
     }
 
+    [Fact]
+    public void TokenizeSearchQuery_NormalizesWhitespaceAndPreservesTechnicalPunctuation()
+    {
+        var tokens = KeywordMatcher.TokenizeSearchQuery("  \t.NET   C#\r\nC++  ");
+
+        Assert.Equal([".NET", "C#", "C++"], tokens);
+    }
+
     private static JobVacancy CreateVacancy(string title, string description) => new()
     {
         ExternalId = "job-1",

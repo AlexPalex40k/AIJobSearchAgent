@@ -4,6 +4,9 @@ namespace AIJobSearchAgent.Application.Services;
 
 public static class KeywordMatcher
 {
+    public const int MaximumSearchQueryLength = 100;
+    public const int MaximumSearchTokenCount = 10;
+
     public static IReadOnlyList<string> NormalizeKeywords(IEnumerable<string>? keywords) =>
         keywords?
             .Where(keyword => !string.IsNullOrWhiteSpace(keyword))
@@ -11,6 +14,13 @@ public static class KeywordMatcher
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray()
         ?? [];
+
+    public static IReadOnlyList<string> TokenizeSearchQuery(string? query) =>
+        string.IsNullOrWhiteSpace(query)
+            ? []
+            : query.Split(
+                (char[]?)null,
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     // Phase 1 uses OR semantics: any keyword in either title or description is a match.
     public static bool Matches(JobVacancy vacancy, IReadOnlyCollection<string> keywords)

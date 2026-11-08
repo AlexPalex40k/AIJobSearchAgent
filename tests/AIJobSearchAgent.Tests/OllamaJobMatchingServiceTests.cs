@@ -42,7 +42,7 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(["C#", "ASP.NET Core"], result.MatchedSkills);
         Assert.Equal(["Kubernetes"], result.MissingOptionalSkills);
         Assert.Equal("qwen3:1.7b", result.ModelName);
-        Assert.Equal("job-match-v2", result.PromptVersion);
+        Assert.Equal("job-match-v3", result.PromptVersion);
         Assert.NotNull(capturedRequest);
 
         using var requestJson = JsonDocument.Parse(capturedRequest);

@@ -213,7 +213,7 @@ Example successful response:
   "jobVacancyId": "00000000-0000-0000-0000-000000000000",
   "profileHash": "4b7c...64-lowercase-hex-characters...",
   "modelName": "qwen3:1.7b",
-  "promptVersion": "job-match-v2",
+  "promptVersion": "job-match-v3",
   "rating": 4,
   "matchedSkills": ["C#", "ASP.NET Core"],
   "missingRequiredSkills": [],
@@ -232,14 +232,15 @@ Invoke-RestMethod "http://localhost:5091/api/jobs/$jobId/evaluations"
 
 Failed and timed-out LLM attempts are recorded with a `null` rating and a non-success status. The API returns an error response instead of fabricating a successful rating. Evaluations are only started by the single-vacancy POST endpoint; imports and list requests never trigger matching automatically.
 
-### Matching prompt version 2
+### Matching prompt version 3
 
-`job-match-v2` makes the evidence rules explicit while preserving the existing structured response and rating scale. It separates mandatory, optional, ambiguous, and incompatible evidence; prevents total professional experience from being treated as per-skill experience; compares stated language levels using the CEFR order; and evaluates location, remote-work, seniority, and overqualification without inventing candidate commitments. Incomplete vacancies must retain the `Insufficient information:` explanation prefix, and vacancy text remains untrusted data that cannot override the system instructions.
+`job-match-v3` uses a shorter six-step evaluation sequence designed to be easier for small local models to follow. It extracts only explicit requirements, separates mandatory and optional skills from work conditions and preferences, compares them with candidate evidence, identifies critical gaps and uncertainty, applies the 1–5 rubric, and returns consistent structured output. It retains CEFR, location, overqualification, incomplete-vacancy, and prompt-injection safeguards without the longer repeated guidance used by v2.
 
-The prompt-contract tests verify these instructions and the version recorded with evaluations, but they cannot prove that a small local model follows every rule consistently. Use the benchmark runner to measure behavior. To compare v1 with v2, keep a saved v1 result, run the same model against the unchanged dataset and synthetic profile with v2, and compare the two files:
+The prompt-contract tests verify these instructions and the version recorded with evaluations, but they cannot prove that a small local model follows every rule consistently. Use the benchmark runner to measure behavior. To compare v1, v2, and v3, keep the saved earlier results, run the same model against the unchanged dataset and synthetic profile with v3, and compare all three files:
 
 ```powershell
-dotnet run --project tools/AIJobSearchAgent.Benchmarks -- compare benchmarks/results/v1-run.json benchmarks/results/v2-run.json
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- --model qwen3:4b
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- compare benchmarks/results/v1-run.json benchmarks/results/v2-run.json benchmarks/results/v3-run.json
 ```
 
 Direct comparison requires identical dataset and profile hashes. The report shows the differing prompt versions explicitly, so any changes reflect a prompt experiment rather than a model-only comparison. Review per-case disagreements, coverage, failures, latency, accuracy, and MAE together; do not treat one aggregate metric as proof that a prompt is universally better.

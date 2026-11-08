@@ -278,6 +278,48 @@ Available options are:
 --case <id>       Run one exact stable case ID
 ```
 
+### Inspect structured vacancy requirements
+
+The development benchmark tool can run the isolated `vacancy-requirements-v1` extractor against one existing benchmark vacancy. It prints the structured requirements and exact supporting quotations as JSON; it does not load the candidate profile, calculate a match rating, save a benchmark result, or change the production API matching path.
+
+Start Ollama, then run:
+
+```powershell
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- extract --case dotnet-backend-excellent
+```
+
+Use `--model <name>` or `--dataset <path>` to override the defaults. Unsupported quotations, malformed output, Ollama errors, and timeouts fail the command instead of producing an apparently valid extraction. An empty description produces an explicit `isDescriptionInsufficient` result without calling Ollama.
+
+Human-reviewed extraction labels are intentionally separate from the rating ground truth. The initial empty label set is `benchmarks/extraction-labels.v1.json`; do not populate it from model output. A future reviewed entry has this shape:
+
+```json
+{
+  "caseId": "stable-benchmark-case-id",
+  "reviewStatus": "reviewed",
+  "reviewedBy": "reviewer identifier",
+  "reviewedAt": "2026-11-09T12:00:00Z",
+  "requirements": {
+    "mandatoryTechnicalSkills": [
+      { "name": "C#", "evidenceQuote": "exact text copied from the vacancy" }
+    ],
+    "optionalTechnicalSkills": [],
+    "contextualTechnologyMentions": [],
+    "overallExperienceRequirements": [],
+    "technologyExperienceRequirements": [],
+    "languageRequirements": [],
+    "locationRequirements": [],
+    "workArrangementConditions": [],
+    "relocationConditions": [],
+    "ambiguousRequirements": [],
+    "isDescriptionInsufficient": false,
+    "insufficientInformation": []
+  },
+  "notes": "Independent human annotation notes."
+}
+```
+
+No extraction accuracy is reported until this separate label set contains independently reviewed annotations and an evaluation procedure is approved.
+
 For a quick connectivity smoke test that does not establish accuracy:
 
 ```powershell

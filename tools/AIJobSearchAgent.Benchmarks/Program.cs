@@ -32,6 +32,11 @@ internal static class Program
                 return await CompareAsync(commandLine.ComparisonPaths, cancellationSource.Token);
             }
 
+            if (commandLine.IsExtraction)
+            {
+                return await ExtractAsync(commandLine, cancellationSource.Token);
+            }
+
             return await RunAsync(commandLine, cancellationSource.Token);
         }
         catch (OperationCanceledException)
@@ -111,6 +116,51 @@ internal static class Program
         }
 
         Console.WriteLine("No model is declared a winner; review coverage, quality, failures, latency, and disagreements together.");
+        return 0;
+    }
+
+    private static async Task<int> ExtractAsync(
+        BenchmarkCommandLineOptions commandLine,
+        CancellationToken cancellationToken)
+    {
+        var dataset = await BenchmarkDatasetLoader.LoadAsync(
+            Path.GetFullPath(commandLine.DatasetPath),
+            cancellationToken);
+        var benchmarkCase = dataset.Dataset.Cases.SingleOrDefault(item => string.Equals(
+            item.Id,
+            commandLine.CaseFilter,
+            StringComparison.OrdinalIgnoreCase));
+        if (benchmarkCase is null)
+        {
+            throw new BenchmarkValidationException(
+                $"Case filter '{commandLine.CaseFilter}' did not match a benchmark case ID.");
+        }
+
+        var ollamaOptions = new OllamaOptions { Model = commandLine.Model };
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<IOptions<OllamaOptions>>(Options.Create(ollamaOptions));
+        services.AddHttpClient<IJobRequirementsExtractor, OllamaJobRequirementsExtractor>(client =>
+        {
+            client.BaseAddress = new Uri(ollamaOptions.Endpoint);
+            client.Timeout = TimeSpan.FromSeconds(ollamaOptions.TimeoutSeconds);
+        });
+
+        await using var serviceProvider = services.BuildServiceProvider();
+        var extractor = serviceProvider.GetRequiredService<IJobRequirementsExtractor>();
+        var extraction = await extractor.ExtractAsync(new AIJobSearchAgent.Domain.Entities.JobVacancy
+        {
+            ExternalId = benchmarkCase.Id,
+            Source = "SyntheticBenchmark",
+            Title = benchmarkCase.VacancyTitle,
+            Company = benchmarkCase.Company,
+            Location = benchmarkCase.Location,
+            IsRemote = benchmarkCase.IsRemote,
+            Description = benchmarkCase.Description,
+            Url = benchmarkCase.VacancyUrl ?? string.Empty
+        }, cancellationToken);
+
+        Console.WriteLine(JsonSerializer.Serialize(extraction, BenchmarkJson.SerializerOptions));
         return 0;
     }
 }

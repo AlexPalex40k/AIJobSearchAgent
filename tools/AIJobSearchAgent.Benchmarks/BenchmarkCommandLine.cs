@@ -3,6 +3,7 @@ namespace AIJobSearchAgent.Benchmarks;
 public sealed record BenchmarkCommandLineOptions(
     bool ShowHelp,
     bool IsComparison,
+    bool IsExtraction,
     string DatasetPath,
     string ProfilePath,
     string Model,
@@ -38,8 +39,15 @@ public static class BenchmarkCommandLine
             };
         }
 
+        var firstOptionIndex = 0;
         var options = Defaults();
-        for (var index = 0; index < arguments.Count; index += 2)
+        if (string.Equals(arguments[0], "extract", StringComparison.OrdinalIgnoreCase))
+        {
+            options = options with { IsExtraction = true };
+            firstOptionIndex = 1;
+        }
+
+        for (var index = firstOptionIndex; index < arguments.Count; index += 2)
         {
             if (index + 1 >= arguments.Count)
             {
@@ -64,6 +72,11 @@ public static class BenchmarkCommandLine
             throw new BenchmarkValidationException("Model must contain between 1 and 200 characters.");
         }
 
+        if (options.IsExtraction && string.IsNullOrWhiteSpace(options.CaseFilter))
+        {
+            throw new BenchmarkValidationException("Extraction inspection requires --case with an exact benchmark case ID.");
+        }
+
         return options;
     }
 
@@ -81,11 +94,15 @@ public static class BenchmarkCommandLine
 
         Compare saved runs without Ollama:
           dotnet run --project tools/AIJobSearchAgent.Benchmarks -- compare <result1.json> <result2.json> [more.json]
+
+        Inspect structured requirements for one benchmark vacancy without calculating metrics:
+          dotnet run --project tools/AIJobSearchAgent.Benchmarks -- extract --case <id> [--model <name>] [--dataset <path>]
         """;
 
     private static BenchmarkCommandLineOptions Defaults() => new(
         ShowHelp: false,
         IsComparison: false,
+        IsExtraction: false,
         DatasetPath: Path.Combine("benchmarks", "dataset.v1.json"),
         ProfilePath: Path.Combine("benchmarks", "candidate-profile.synthetic.json"),
         Model: "qwen3:1.7b",

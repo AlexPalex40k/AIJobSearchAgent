@@ -53,6 +53,12 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(options.Endpoint);
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
         });
+        services.AddHttpClient<IJobRequirementsExtractor, OllamaJobRequirementsExtractor>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
+            client.BaseAddress = new Uri(options.Endpoint);
+            client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        });
 
         return services;
     }

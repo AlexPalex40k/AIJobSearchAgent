@@ -412,6 +412,27 @@ public sealed class BenchmarkTests
         Assert.Equal("qwen3:8b", options.Model);
     }
 
+    [Fact]
+    public void CommandLine_ParsesSingleCaseExtractionInspection()
+    {
+        var options = BenchmarkCommandLine.Parse(
+            ["extract", "--case", "dotnet-backend-excellent", "--model", "qwen3:4b"]);
+
+        Assert.True(options.IsExtraction);
+        Assert.False(options.IsComparison);
+        Assert.Equal("dotnet-backend-excellent", options.CaseFilter);
+        Assert.Equal("qwen3:4b", options.Model);
+    }
+
+    [Fact]
+    public void CommandLine_RequiresCaseForExtractionInspection()
+    {
+        var exception = Assert.Throws<BenchmarkValidationException>(() =>
+            BenchmarkCommandLine.Parse(["extract", "--model", "qwen3:4b"]));
+
+        Assert.Contains("requires --case", exception.Message);
+    }
+
     private static BenchmarkCase CreateCase(
         string id,
         ReferenceLabelStatus labelStatus = ReferenceLabelStatus.Provisional,

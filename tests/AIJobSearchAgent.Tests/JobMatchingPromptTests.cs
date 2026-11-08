@@ -16,11 +16,11 @@ public sealed class JobMatchingPromptTests
             Name = privateName,
             ProfessionalTitle = "Backend Engineer",
             YearsProfessionalExperience = 5,
-            TechnicalSkills = [new CandidateSkill { Name = "C#", YearsExperience = 5 }],
+            TechnicalSkills = [new CandidateSkill { Name = "C#", Level = "advanced" }],
             PreferredJobTitles = ["Backend Engineer"],
             PreferredLocations = ["Remote"],
             RemoteWorkPreference = RemoteWorkPreference.RemotePreferred,
-            SpokenLanguages = [new SpokenLanguage { Language = "English", Proficiency = "professional" }],
+            SpokenLanguages = [new SpokenLanguage { Language = "English", Level = "B2" }],
             AdditionalExperienceOrPreferences = "Backend APIs"
         };
         var vacancy = new JobVacancy
@@ -41,7 +41,16 @@ public sealed class JobMatchingPromptTests
         var candidate = document.RootElement.GetProperty("candidateProfile");
         Assert.False(candidate.TryGetProperty("name", out _));
         Assert.Equal("Backend Engineer", candidate.GetProperty("professionalTitle").GetString());
+        Assert.Equal(5, candidate.GetProperty("yearsProfessionalExperience").GetDecimal());
         Assert.Equal("remotePreferred", candidate.GetProperty("remoteWorkPreference").GetString());
         Assert.Equal("Backend APIs", candidate.GetProperty("relevantProfessionalPreferences").GetString());
+        var skill = candidate.GetProperty("technicalSkills")[0];
+        Assert.Equal("C#", skill.GetProperty("name").GetString());
+        Assert.Equal("advanced", skill.GetProperty("level").GetString());
+        Assert.False(skill.TryGetProperty("yearsExperience", out _));
+        var language = candidate.GetProperty("spokenLanguages")[0];
+        Assert.Equal("English", language.GetProperty("language").GetString());
+        Assert.Equal("B2", language.GetProperty("level").GetString());
+        Assert.False(language.TryGetProperty("proficiency", out _));
     }
 }

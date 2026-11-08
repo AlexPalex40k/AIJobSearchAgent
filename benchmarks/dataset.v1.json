@@ -168,7 +168,7 @@
       "location": "Remote within the European Union",
       "isRemote": true,
       "description": "Build C# ASP.NET Core APIs with SQL and Entity Framework Core. Daily customer workshops require English at CEFR C1 or higher. Five years of backend experience is required.",
-      "expectedRating": 4,
+      "expectedRating": 3,
       "labelStatus": "approved",
 	  "reviewedBy": "human-review",
 	  "reviewedAt": "2026-11-08T20:30:00Z",

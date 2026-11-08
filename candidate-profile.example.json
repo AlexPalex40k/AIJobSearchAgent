@@ -5,17 +5,14 @@
   "technicalSkills": [
     {
       "name": "C#",
-      "yearsExperience": 5,
       "level": "advanced"
     },
     {
       "name": "ASP.NET Core",
-      "yearsExperience": 4,
       "level": "advanced"
     },
     {
       "name": "SQL",
-      "yearsExperience": 4,
       "level": "intermediate"
     }
   ],
@@ -31,7 +28,7 @@
   "spokenLanguages": [
     {
       "language": "English",
-      "proficiency": "professional working proficiency"
+      "level": "B2"
     }
   ],
   "additionalExperienceOrPreferences": "Interested in backend services, APIs, and maintainable distributed systems."

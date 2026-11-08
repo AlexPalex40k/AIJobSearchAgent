@@ -13,6 +13,9 @@ public sealed class CandidateProfileFileProvider(
     IOptions<CandidateProfileOptions> options,
     CandidateProfileFileLocation fileLocation) : ICandidateProfileProvider
 {
+    private static readonly IReadOnlySet<string> SupportedLanguageLevels = new HashSet<string>(
+        ["A1", "A2", "B1", "B2", "C1", "C2", "native"],
+        StringComparer.OrdinalIgnoreCase);
     private static readonly JsonSerializerOptions SerializerOptions = CreateSerializerOptions();
 
     public async Task<CandidateProfileSnapshot> LoadAsync(CancellationToken cancellationToken)
@@ -45,7 +48,12 @@ public sealed class CandidateProfileFileProvider(
         CandidateProfile? profile;
         try
         {
+            RejectDeprecatedProperties(json);
             profile = JsonSerializer.Deserialize<CandidateProfile>(json, SerializerOptions);
+        }
+        catch (CandidateProfileException)
+        {
+            throw;
         }
         catch (JsonException exception)
         {
@@ -88,11 +96,6 @@ public sealed class CandidateProfileFileProvider(
                 }
 
                 ValidateRequiredText(skill.Name, "technicalSkills.name", 100, errors);
-                if (skill.YearsExperience is < 0 or > 80)
-                {
-                    errors.Add($"yearsExperience for skill '{skill.Name}' must be between 0 and 80");
-                }
-
                 ValidateOptionalText(skill.Level, "technicalSkills.level", 100, errors);
             }
         }
@@ -109,7 +112,13 @@ public sealed class CandidateProfileFileProvider(
             }
 
             ValidateRequiredText(language.Language, "spokenLanguages.language", 100, errors);
-            ValidateRequiredText(language.Proficiency, "spokenLanguages.proficiency", 100, errors);
+            ValidateRequiredText(language.Level, "spokenLanguages.level", 100, errors);
+            if (!string.IsNullOrWhiteSpace(language.Level) &&
+                !SupportedLanguageLevels.Contains(language.Level))
+            {
+                errors.Add(
+                    $"spokenLanguages.level '{language.Level}' is unsupported; use A1, A2, B1, B2, C1, C2, or native");
+            }
         }
 
         if (!Enum.IsDefined(profile.RemoteWorkPreference))
@@ -128,6 +137,66 @@ public sealed class CandidateProfileFileProvider(
         {
             throw new CandidateProfileException($"Candidate profile is invalid: {string.Join("; ", errors)}.");
         }
+    }
+
+    private static void RejectDeprecatedProperties(string json)
+    {
+        using var document = JsonDocument.Parse(json, new JsonDocumentOptions
+        {
+            CommentHandling = JsonCommentHandling.Skip
+        });
+        if (document.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var errors = new List<string>();
+        if (TryGetPropertyIgnoreCase(document.RootElement, "technicalSkills", out var technicalSkills) &&
+            technicalSkills.ValueKind == JsonValueKind.Array &&
+            technicalSkills.EnumerateArray().Any(element =>
+                element.ValueKind == JsonValueKind.Object &&
+                HasPropertyIgnoreCase(element, "yearsExperience")))
+        {
+            errors.Add("remove deprecated 'technicalSkills[].yearsExperience'");
+        }
+
+        if (TryGetPropertyIgnoreCase(document.RootElement, "spokenLanguages", out var spokenLanguages) &&
+            spokenLanguages.ValueKind == JsonValueKind.Array &&
+            spokenLanguages.EnumerateArray().Any(element =>
+                element.ValueKind == JsonValueKind.Object &&
+                HasPropertyIgnoreCase(element, "proficiency")))
+        {
+            errors.Add("rename deprecated 'spokenLanguages[].proficiency' to 'spokenLanguages[].level'");
+        }
+
+        if (errors.Count > 0)
+        {
+            throw new CandidateProfileException(
+                $"Candidate profile uses the previous JSON format: {string.Join("; ", errors)}. " +
+                "Supported language levels are A1, A2, B1, B2, C1, C2, and native.");
+        }
+    }
+
+    private static bool HasPropertyIgnoreCase(JsonElement element, string propertyName) =>
+        element.EnumerateObject().Any(property =>
+            string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase));
+
+    private static bool TryGetPropertyIgnoreCase(
+        JsonElement element,
+        string propertyName,
+        out JsonElement value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     private static void ValidateTextList(

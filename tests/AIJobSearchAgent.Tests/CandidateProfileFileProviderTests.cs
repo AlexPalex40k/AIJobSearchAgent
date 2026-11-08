@@ -20,7 +20,10 @@ public sealed class CandidateProfileFileProviderTests
 
             Assert.Equal("Backend Engineer", first.Profile.ProfessionalTitle);
             Assert.Equal(5, first.Profile.YearsProfessionalExperience);
-            Assert.Equal("C#", Assert.Single(first.Profile.TechnicalSkills).Name);
+            var skill = Assert.Single(first.Profile.TechnicalSkills);
+            Assert.Equal("C#", skill.Name);
+            Assert.Equal("advanced", skill.Level);
+            Assert.Equal("B2", Assert.Single(first.Profile.SpokenLanguages).Level);
             Assert.Equal(64, first.ProfileHash.Length);
             Assert.Equal(first.ProfileHash, second.ProfileHash);
         }
@@ -40,7 +43,7 @@ public sealed class CandidateProfileFileProviderTests
                 {
                   "professionalTitle": "Backend Engineer",
                   "yearsProfessionalExperience": -1,
-                  "technicalSkills": [{ "name": "C#", "yearsExperience": 2 }]
+                  "technicalSkills": [{ "name": "C#", "level": "advanced" }]
                 }
                 """;
             await File.WriteAllTextAsync(Path.Combine(directory, "profile.json"), invalidJson);
@@ -130,6 +133,120 @@ public sealed class CandidateProfileFileProviderTests
         }
     }
 
+    [Theory]
+    [InlineData("A1")]
+    [InlineData("A2")]
+    [InlineData("B1")]
+    [InlineData("B2")]
+    [InlineData("C1")]
+    [InlineData("C2")]
+    [InlineData("native")]
+    [InlineData("b2")]
+    [InlineData("NATIVE")]
+    public async Task LoadAsync_AcceptsSupportedLanguageLevelsCaseInsensitively(string level)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var json = $$"""
+                {
+                  "professionalTitle": "Backend Engineer",
+                  "yearsProfessionalExperience": 5,
+                  "technicalSkills": [{ "name": "C#", "level": "advanced" }],
+                  "spokenLanguages": [{ "language": "English", "level": "{{level}}" }]
+                }
+                """;
+            await File.WriteAllTextAsync(Path.Combine(directory, "profile.json"), json);
+            var provider = CreateProvider(directory);
+
+            var snapshot = await provider.LoadAsync(CancellationToken.None);
+
+            Assert.Equal(level, Assert.Single(snapshot.Profile.SpokenLanguages).Level);
+            Assert.Equal(5, snapshot.Profile.YearsProfessionalExperience);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData("B3")]
+    [InlineData("professional working proficiency")]
+    [InlineData("fluent")]
+    public async Task LoadAsync_RejectsUnsupportedLanguageLevelsWithSupportedValues(string level)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            var json = $$"""
+                {
+                  "professionalTitle": "Backend Engineer",
+                  "yearsProfessionalExperience": 5,
+                  "technicalSkills": [{ "name": "C#" }],
+                  "spokenLanguages": [{ "language": "English", "level": "{{level}}" }]
+                }
+                """;
+            await File.WriteAllTextAsync(Path.Combine(directory, "profile.json"), json);
+            var provider = CreateProvider(directory);
+
+            var exception = await Assert.ThrowsAsync<CandidateProfileException>(
+                () => provider.LoadAsync(CancellationToken.None));
+
+            Assert.Contains(level, exception.Message);
+            Assert.Contains("A1, A2, B1, B2, C1, C2, or native", exception.Message);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(
+        "yearsExperience",
+        "remove deprecated 'technicalSkills[].yearsExperience'",
+        """
+        {
+          "professionalTitle": "Backend Engineer",
+          "yearsProfessionalExperience": 5,
+          "technicalSkills": [{ "name": "C#", "yearsExperience": 5 }]
+        }
+        """)]
+    [InlineData(
+        "proficiency",
+        "rename deprecated 'spokenLanguages[].proficiency' to 'spokenLanguages[].level'",
+        """
+        {
+          "professionalTitle": "Backend Engineer",
+          "yearsProfessionalExperience": 5,
+          "technicalSkills": [{ "name": "C#" }],
+          "spokenLanguages": [{ "language": "English", "proficiency": "professional" }]
+        }
+        """)]
+    public async Task LoadAsync_RejectsDeprecatedProfileFieldsWithMigrationGuidance(
+        string deprecatedProperty,
+        string guidance,
+        string json)
+    {
+        var directory = CreateTemporaryDirectory();
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "profile.json"), json);
+            var provider = CreateProvider(directory);
+
+            var exception = await Assert.ThrowsAsync<CandidateProfileException>(
+                () => provider.LoadAsync(CancellationToken.None));
+
+            Assert.Contains(deprecatedProperty, exception.Message);
+            Assert.Contains(guidance, exception.Message);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
     private static CandidateProfileFileProvider CreateProvider(string directory) => new(
         Options.Create(new CandidateProfileOptions { Path = "profile.json" }),
         new CandidateProfileFileLocation(directory));
@@ -146,13 +263,13 @@ public sealed class CandidateProfileFileProviderTests
           "professionalTitle": "Backend Engineer",
           "yearsProfessionalExperience": 5,
           "technicalSkills": [
-            { "name": "C#", "yearsExperience": 5, "level": "advanced" }
+            { "name": "C#", "level": "advanced" }
           ],
           "preferredJobTitles": ["Backend Engineer"],
           "preferredLocations": ["Remote"],
           "remoteWorkPreference": "remotePreferred",
           "spokenLanguages": [
-            { "language": "English", "proficiency": "professional" }
+            { "language": "English", "level": "B2" }
           ]
         }
         """;

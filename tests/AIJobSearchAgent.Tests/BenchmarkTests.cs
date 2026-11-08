@@ -13,7 +13,7 @@ namespace AIJobSearchAgent.Tests;
 public sealed class BenchmarkTests
 {
     [Fact]
-    public async Task CommittedBenchmarkInputs_AreValidSyntheticAndProvisional()
+    public async Task CommittedBenchmarkInputs_AreValidSyntheticAndApproved()
     {
         var solutionRoot = FindSolutionRoot();
         var dataset = await BenchmarkDatasetLoader.LoadAsync(
@@ -30,10 +30,18 @@ public sealed class BenchmarkTests
         Assert.Equal("1.0", dataset.Dataset.DatasetVersion);
         Assert.Equal(18, dataset.Dataset.Cases.Count);
         Assert.All(dataset.Dataset.Cases, benchmarkCase =>
-            Assert.Equal(ReferenceLabelStatus.Provisional, benchmarkCase.LabelStatus));
+            Assert.Equal(ReferenceLabelStatus.Approved, benchmarkCase.LabelStatus));
+        Assert.All(dataset.Dataset.Cases, benchmarkCase =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(benchmarkCase.ReviewedBy));
+            Assert.NotNull(benchmarkCase.ReviewedAt);
+        });
         Assert.All(dataset.Dataset.Cases, benchmarkCase => Assert.Null(benchmarkCase.VacancyUrl));
         Assert.Equal(64, dataset.DatasetHash.Length);
         Assert.Null(profile.Profile.Name);
+        Assert.Equal(6, profile.Profile.YearsProfessionalExperience);
+        Assert.Equal("B2", profile.Profile.SpokenLanguages[0].Level);
+        Assert.Equal("native", profile.Profile.SpokenLanguages[1].Level);
         Assert.Equal(64, profile.ProfileHash.Length);
     }
 
@@ -496,7 +504,7 @@ public sealed class BenchmarkTests
     {
         ProfessionalTitle = "Backend Engineer",
         YearsProfessionalExperience = 5,
-        TechnicalSkills = [new CandidateSkill { Name = "C#", YearsExperience = 5 }]
+        TechnicalSkills = [new CandidateSkill { Name = "C#" }]
     };
 
     private static string FindSolutionRoot()

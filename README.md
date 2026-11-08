@@ -134,11 +134,38 @@ notepad candidate-profile.json
 
 - optional name and required professional title;
 - total professional experience;
-- technical skills with optional years and level;
+- technical skills with an optional level;
 - preferred titles and locations;
 - `noPreference`, `remoteOnly`, `remotePreferred`, `hybridPreferred`, or `onSiteAccepted` remote preferences;
-- spoken languages and proficiency;
+- spoken languages with a required `A1`, `A2`, `B1`, `B2`, `C1`, `C2`, or `native` level;
 - additional professional experience or preferences.
+
+For example:
+
+```json
+{
+  "professionalTitle": "Backend Software Engineer",
+  "yearsProfessionalExperience": 6,
+  "technicalSkills": [
+    { "name": "C#", "level": "advanced" },
+    { "name": "Docker", "level": "intermediate" }
+  ],
+  "spokenLanguages": [
+    { "language": "English", "level": "B2" },
+    { "language": "Hungarian", "level": "native" }
+  ]
+}
+```
+
+`yearsProfessionalExperience` is the candidate's total professional experience. It is not copied to individual skills and does not mean that every listed technology has been used for that number of years. The `native` language level represents native proficiency; it is not a formal CEFR certification.
+
+Profiles created with the previous format must be migrated manually because unknown JSON properties are rejected:
+
+1. Remove every `technicalSkills[].yearsExperience` property.
+2. Rename `spokenLanguages[].proficiency` to `spokenLanguages[].level`.
+3. Replace descriptive language proficiency text with `A1`, `A2`, `B1`, `B2`, `C1`, `C2`, or `native`.
+
+The loader reports these deprecated fields explicitly instead of silently ignoring them.
 
 Each evaluation stores a SHA-256 hash of the normalized profile, not the profile itself. Editing the profile therefore creates a distinguishable history without persisting its private contents in the database.
 

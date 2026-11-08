@@ -342,13 +342,13 @@ public sealed class OllamaJobMatchingServiceTests
         YearsProfessionalExperience = 5,
         TechnicalSkills =
         [
-            new CandidateSkill { Name = "C#", YearsExperience = 5, Level = "advanced" },
-            new CandidateSkill { Name = "ASP.NET Core", YearsExperience = 4, Level = "advanced" }
+            new CandidateSkill { Name = "C#", Level = "advanced" },
+            new CandidateSkill { Name = "ASP.NET Core", Level = "advanced" }
         ],
         PreferredJobTitles = ["Backend Engineer"],
         PreferredLocations = ["Remote"],
         RemoteWorkPreference = RemoteWorkPreference.RemotePreferred,
-        SpokenLanguages = [new SpokenLanguage { Language = "English", Proficiency = "professional" }]
+        SpokenLanguages = [new SpokenLanguage { Language = "English", Level = "B2" }]
     };
 
     private sealed class DelegateHandler(

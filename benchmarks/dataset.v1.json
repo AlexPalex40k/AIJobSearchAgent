@@ -172,7 +172,7 @@
       "labelStatus": "approved",
 	  "reviewedBy": "human-review",
 	  "reviewedAt": "2026-11-08T20:30:00Z",
-      "rationale": "Technical and experience requirements match, but professional working proficiency does not explicitly prove the stated C1 threshold.",
+      "rationale": "The candidate meets the technical and experience requirements, but their English level is B2, below the explicitly required C1. This is a significant mismatch despite strong technical alignment.",
       "expectedMatchedSkills": ["C#", "ASP.NET Core", "SQL", "Entity Framework Core"],
       "expectedMissingSkills": [],
       "tags": ["dotnet", "language-restriction", "english"]

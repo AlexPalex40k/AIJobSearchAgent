@@ -10,3 +10,4 @@ Data/*.db-shm
 Data/*.db-wal
 !.gitkeep
 /candidate-profile.json
+/benchmarks/results/

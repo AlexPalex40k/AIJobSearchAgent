@@ -23,5 +23,6 @@
     <ProjectReference Include="..\..\src\AIJobSearchAgent.Api\AIJobSearchAgent.Api.csproj" />
     <ProjectReference Include="..\..\src\AIJobSearchAgent.Application\AIJobSearchAgent.Application.csproj" />
     <ProjectReference Include="..\..\src\AIJobSearchAgent.Infrastructure\AIJobSearchAgent.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\tools\AIJobSearchAgent.Benchmarks\AIJobSearchAgent.Benchmarks.csproj" />
   </ItemGroup>
 </Project>

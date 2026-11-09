@@ -121,7 +121,7 @@ The endpoint, model, timeout, and maximum vacancy-description size are configura
 
 The integration calls Ollama's `/api/chat` endpoint with streaming disabled, temperature 0, and a JSON Schema through the `format` field. Ollama receives only the untrusted vacancy title and bounded description. It extracts required and optional technologies, whether the requirements are clear, an optional overall experience minimum, and mandatory languages. Before scoring, each extracted technology must also be mentioned in that bounded description; the title alone is not evidence. Unsupported extractions are excluded from required and optional skill comparison and named in the deterministic explanation. The candidate profile is never included in the LLM request; rating and skill comparison happen deterministically in C#. No candidate or vacancy data is sent to a paid or cloud API.
 
-Matching version `job-match-simple-v1` uses these rules:
+Matching version `job-match-simple-v2` uses these rules:
 
 - all required and optional technical skills match: rating 5;
 - all required skills match but an optional skill is missing: rating 4;
@@ -130,6 +130,8 @@ Matching version `job-match-simple-v1` uses these rules:
 - none of a clear required technical stack matches: rating 1.
 
 Explicit aliases cover common spellings of C#, EF Core, ASP.NET Core, and .NET for both candidate comparison and description verification. Description checks are token-aware: they do not broaden SQL into a specific database, Java into JavaScript, or a platform into all of its frameworks. A confirmed language-level shortfall caps the rating at 3. If a mandatory language is absent from the candidate profile, capability remains unknown rather than being called a mismatch, but the rating is also capped at 3 until that requirement is verified. An explicit overall-experience shortfall caps the rating at 4 and is never interpreted as technology-specific experience.
+
+Mandatory languages are also checked against the bounded vacancy description before scoring. A language is retained only when the text connects it to an explicit requirement; background references such as an English-speaking team or English documentation are not enough. CEFR levels are retained only when the exact level is stated with the requirement. `native` is retained only when native proficiency is explicitly required. If the language is mandatory but Ollama returns an unsupported level—for example `native` for “professional English”—the language remains required with a `null` minimum level.
 
 ### 2. Create the private candidate profile
 
@@ -223,7 +225,7 @@ Example successful response:
   "jobVacancyId": "00000000-0000-0000-0000-000000000000",
   "profileHash": "4b7c...64-lowercase-hex-characters...",
   "modelName": "qwen3:1.7b",
-  "promptVersion": "job-match-simple-v1",
+  "promptVersion": "job-match-simple-v2",
   "rating": 4,
   "matchedSkills": ["C#", "ASP.NET Core"],
   "missingRequiredSkills": [],
@@ -251,7 +253,7 @@ The committed inputs are intentionally synthetic:
 - `benchmarks/dataset.v1.json` contains 18 fictional vacancies covering strong and incomplete .NET matches, frontend and desktop gaps, seniority mismatches, Python and Java roles, DevOps-heavy work, language and location restrictions, and incomplete or ambiguous descriptions.
 - `benchmarks/candidate-profile.synthetic.json` is a benchmark-only profile and does not read or contain the private `candidate-profile.json`.
 
-The 18 approved ratings in `dataset.v1.json` were reviewed for the earlier LLM rating rubric. The file and historical reports are intentionally unchanged, but those labels are not authoritative ground truth for `job-match-simple-v1`. Because the dataset has no matching-version declaration, new runs still record predictions, failures, distributions, and latency but do not calculate accuracy or MAE. A future dataset must be independently reviewed under the simplified rules and declare `"matchingVersion": "job-match-simple-v1"` before those quality metrics are enabled.
+The 18 approved ratings in `dataset.v1.json` were reviewed for the earlier LLM rating rubric. The file and historical reports are intentionally unchanged, but those labels are not authoritative ground truth for `job-match-simple-v2`. Because the dataset has no matching-version declaration, new runs still record predictions, failures, distributions, and latency but do not calculate accuracy or MAE. A future dataset must be independently reviewed under the simplified rules and declare `"matchingVersion": "job-match-simple-v2"` before those quality metrics are enabled.
 
 Synthetic cases deliberately omit `vacancyUrl`: their companies and vacancies do not exist, so the dataset must not invent links that appear to identify external listings. A future benchmark case based on a real vacancy may set `vacancyUrl` to its actual absolute HTTP or HTTPS source URL. Dataset validation rejects relative, malformed, and non-HTTP(S) URLs. Because external listings can change or disappear, the dataset remains a reviewed snapshot rather than fetching live vacancy content during a run.
 

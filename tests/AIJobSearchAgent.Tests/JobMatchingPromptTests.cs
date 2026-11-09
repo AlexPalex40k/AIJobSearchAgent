@@ -7,6 +7,16 @@ namespace AIJobSearchAgent.Tests;
 public sealed class JobMatchingPromptTests
 {
     [Fact]
+    public void SystemInstructions_RequireExplicitMandatoryLanguageEvidence()
+    {
+        Assert.Equal("job-match-simple-v2", JobMatchingPrompt.Version);
+        Assert.Contains("Never assume English", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("Use minimumLevel null", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("Use native only when native proficiency is explicitly required", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("mentioned only as company, team, documentation, customer, or location context", JobMatchingPrompt.SystemInstructions);
+    }
+
+    [Fact]
     public void CreateUserMessage_ContainsOnlyUntrustedVacancyData()
     {
         var vacancy = new JobVacancy

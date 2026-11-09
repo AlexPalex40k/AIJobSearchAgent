@@ -33,7 +33,7 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(4, result.Rating);
         Assert.Equal(["C#", "ASP.NET Core"], result.MatchedSkills);
         Assert.Equal(["Docker"], result.MissingOptionalSkills);
-        Assert.Equal("job-match-simple-v1", result.PromptVersion);
+        Assert.Equal("job-match-simple-v2", result.PromptVersion);
         Assert.NotNull(capturedRequest);
 
         using var requestJson = JsonDocument.Parse(capturedRequest);
@@ -123,6 +123,88 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(5, result.Rating);
         Assert.Empty(result.MissingOptionalSkills);
         Assert.Contains("optional: Docker", result.Explanation);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsFabricatedEnglishNativeRequirement()
+    {
+        using var httpClient = CreateLanguageResponseClient("English", "native");
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# and ASP.NET Core are required."),
+            CreateProfile(),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.DoesNotContain("language requirement", result.Explanation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_DowngradesUnsupportedNativeLevelForProfessionalEnglish()
+    {
+        using var httpClient = CreateLanguageResponseClient("English", "native");
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# and ASP.NET Core are required. The role requires professional English."),
+            CreateProfile(),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.DoesNotContain("language requirement", result.Explanation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("English B2 is explicitly required.", "English", "B2", "B1")]
+    [InlineData("English C1 is explicitly mandatory.", "English", "C1", "B2")]
+    [InlineData("Native English is explicitly required.", "English", "native", "C2")]
+    [InlineData("German C1 is required.", "German", "C1", "B2")]
+    public async Task EvaluateAsync_PreservesExplicitMandatoryLanguageLevels(
+        string languageRequirement,
+        string languageName,
+        string requiredLevel,
+        string candidateLevel)
+    {
+        using var httpClient = CreateLanguageResponseClient(languageName, requiredLevel);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy($"C# and ASP.NET Core are required. {languageRequirement}"),
+            CreateProfileWithLanguage(languageName, candidateLevel),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rating);
+        Assert.Contains($"below required {requiredLevel}", result.Explanation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsContextualEnglishMention()
+    {
+        using var httpClient = CreateLanguageResponseClient("English", "native");
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy(
+                "C# and ASP.NET Core are required. Our English-speaking team maintains documentation written in English."),
+            CreateProfile(),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.DoesNotContain("language requirement", result.Explanation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_NoRequiredLanguageDoesNotReduceExcellentSkillMatch()
+    {
+        var output = CreateValidStructuredOutput();
+        output["requiredLanguages"] = new JsonArray();
+        using var httpClient = CreateHttpClient((_, _) => Task.FromResult(
+            JsonResponse(CreateOllamaResponse(output.ToJsonString()))));
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# and ASP.NET Core are required."),
+            CreateProfile(),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.DoesNotContain("language requirement", result.Explanation, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -249,6 +331,18 @@ public sealed class OllamaJobMatchingServiceTests
         done = true
     });
 
+    private static HttpClient CreateLanguageResponseClient(string language, string minimumLevel)
+    {
+        var output = CreateValidStructuredOutput();
+        output["requiredLanguages"] = new JsonArray(new JsonObject
+        {
+            ["language"] = language,
+            ["minimumLevel"] = minimumLevel
+        });
+        return CreateHttpClient((_, _) => Task.FromResult(
+            JsonResponse(CreateOllamaResponse(output.ToJsonString()))));
+    }
+
     private static JsonObject CreateValidStructuredOutput() => new()
     {
         ["requiredSkills"] = new JsonArray("C#", "ASP.NET Core"),
@@ -295,6 +389,18 @@ public sealed class OllamaJobMatchingServiceTests
             .Select(skill => new CandidateSkill { Name = skill, Level = "advanced" })
             .ToArray(),
         SpokenLanguages = [new SpokenLanguage { Language = "English", Level = "B2" }]
+    };
+
+    private static CandidateProfile CreateProfileWithLanguage(string language, string level) => new()
+    {
+        ProfessionalTitle = "Backend Engineer",
+        YearsProfessionalExperience = 5,
+        TechnicalSkills =
+        [
+            new CandidateSkill { Name = "C#", Level = "advanced" },
+            new CandidateSkill { Name = "ASP.NET Core", Level = "advanced" }
+        ],
+        SpokenLanguages = [new SpokenLanguage { Language = language, Level = level }]
     };
 
     private sealed class DelegateHandler(

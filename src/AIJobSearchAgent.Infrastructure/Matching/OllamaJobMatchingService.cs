@@ -93,6 +93,12 @@ public sealed class OllamaJobMatchingService(
                 output.RequiredLanguages!
                     .Select(language => new RequiredLanguage(language!.Language!.Trim(), language.MinimumLevel?.Trim()))
                     .ToArray());
+            requirements = requirements with
+            {
+                RequiredLanguages = LanguageRequirementVerifier.Verify(
+                    requirements.RequiredLanguages,
+                    suppliedDescription)
+            };
             var verification = TechnicalRequirementVerifier.Verify(requirements, suppliedDescription);
             var calculation = calculator.Calculate(verification.VerifiedRequirements, profile);
             var transparencyExplanation = TechnicalRequirementVerifier.CreateTransparencyExplanation(verification);

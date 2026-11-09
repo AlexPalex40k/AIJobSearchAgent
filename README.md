@@ -1,6 +1,6 @@
 # AI Job Search Agent
 
-AI Job Search Agent is an educational, portfolio-quality .NET application. Phase 1 collects public job vacancies from Arbeitnow and stores them in SQLite. Phase 2 evaluates individual saved vacancies against a local candidate profile using a local Ollama model and preserves the evaluation history. Paid APIs, CV parsing, notifications, scheduling, authentication, a frontend, RAG, agent orchestration, and cloud deployment remain out of scope.
+AI Job Search Agent is an educational, portfolio-quality .NET application. Phase 1 collects public job vacancies from Arbeitnow and stores them in SQLite. Phase 2 asks a local Ollama model to extract vacancy requirements, compares them with a local candidate profile using deterministic C# rules, and preserves the evaluation history. Paid APIs, CV parsing, notifications, scheduling, authentication, a frontend, RAG, agent orchestration, and cloud deployment remain out of scope.
 
 ## Architecture
 
@@ -119,7 +119,17 @@ The endpoint, model, timeout, and maximum vacancy-description size are configura
 }
 ```
 
-The integration calls Ollama's `/api/chat` endpoint with streaming disabled and supplies a JSON Schema through the `format` field. No candidate or vacancy data is sent to a paid or cloud API.
+The integration calls Ollama's `/api/chat` endpoint with streaming disabled, temperature 0, and a JSON Schema through the `format` field. Ollama receives only the untrusted vacancy title and bounded description. It extracts required and optional technologies, whether the requirements are clear, an optional overall experience minimum, and mandatory languages. The candidate profile is never included in the LLM request; rating and skill comparison happen deterministically in C#. No candidate or vacancy data is sent to a paid or cloud API.
+
+Matching version `job-match-simple-v1` uses these rules:
+
+- all required and optional technical skills match: rating 5;
+- all required skills match but an optional skill is missing: rating 4;
+- some, but not all, required skills match: rating 3;
+- no clear required technical stack is available: rating 2;
+- none of a clear required technical stack matches: rating 1.
+
+Explicit aliases cover common spellings of C#, EF Core, ASP.NET Core, and .NET. They do not broaden SQL into a specific database, Java into JavaScript, or a platform into all of its frameworks. A confirmed language-level shortfall caps the rating at 3. An explicit overall-experience shortfall caps it at 4 and is never interpreted as technology-specific experience. Missing language data is treated as unknown rather than a confirmed incompatibility.
 
 ### 2. Create the private candidate profile
 
@@ -213,7 +223,7 @@ Example successful response:
   "jobVacancyId": "00000000-0000-0000-0000-000000000000",
   "profileHash": "4b7c...64-lowercase-hex-characters...",
   "modelName": "qwen3:1.7b",
-  "promptVersion": "job-match-v1",
+  "promptVersion": "job-match-simple-v1",
   "rating": 4,
   "matchedSkills": ["C#", "ASP.NET Core"],
   "missingRequiredSkills": [],
@@ -234,12 +244,14 @@ Failed and timed-out LLM attempts are recorded with a `null` rating and a non-su
 
 ## Local LLM benchmarking
 
-The benchmark runner measures the existing Ollama matching implementation without changing its prompt or matching algorithm. It references the existing `IJobMatchingService`, `OllamaJobMatchingService`, `JobMatchingPrompt`, and candidate-profile loader. It runs sequentially by default and needs neither the Web API, SQLite, nor Docker.
+The benchmark runner exercises the same `IJobMatchingService`, requirement extraction, deterministic calculator, and candidate-profile loader used by the API. It runs sequentially by default and needs neither the Web API, SQLite, nor Docker.
 
 The committed inputs are intentionally synthetic:
 
 - `benchmarks/dataset.v1.json` contains 18 fictional vacancies covering strong and incomplete .NET matches, frontend and desktop gaps, seniority mismatches, Python and Java roles, DevOps-heavy work, language and location restrictions, and incomplete or ambiguous descriptions.
 - `benchmarks/candidate-profile.synthetic.json` is a benchmark-only profile and does not read or contain the private `candidate-profile.json`.
+
+The 18 approved ratings in `dataset.v1.json` were reviewed for the earlier LLM rating rubric. The file and historical reports are intentionally unchanged, but those labels are not authoritative ground truth for `job-match-simple-v1`. Because the dataset has no matching-version declaration, new runs still record predictions, failures, distributions, and latency but do not calculate accuracy or MAE. A future dataset must be independently reviewed under the simplified rules and declare `"matchingVersion": "job-match-simple-v1"` before those quality metrics are enabled.
 
 Synthetic cases deliberately omit `vacancyUrl`: their companies and vacancies do not exist, so the dataset must not invent links that appear to identify external listings. A future benchmark case based on a real vacancy may set `vacancyUrl` to its actual absolute HTTP or HTTPS source URL. Dataset validation rejects relative, malformed, and non-HTTP(S) URLs. Because external listings can change or disappear, the dataset remains a reviewed snapshot rather than fetching live vacancy content during a run.
 
@@ -319,7 +331,7 @@ Tests use mocked HTTP responses and disposable in-memory or temporary-file SQLit
 dotnet test AIJobSearchAgent.sln
 ```
 
-Coverage includes Phase 1 collection behavior plus candidate profile validation, stable profile hashing, Ollama structured-output deserialization, rating and required-field validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
+Coverage includes Phase 1 collection behavior plus candidate profile validation, stable profile hashing, deterministic ratings and aliases, conservative experience and language handling, Ollama structured-output deserialization and validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
 
 ## Provider behavior and limitations
 
@@ -332,8 +344,9 @@ Additional limitations:
 - SQLite's local database is intended for a single application instance; the unique constraint still protects against duplicate imports.
 - Imported data is only as complete and current as the upstream response.
 - Swagger is enabled only in the Development environment.
-- `qwen3:1.7b` is a small local model. Its ratings and skill classification can be inconsistent or overly literal and must be treated as decision support, not fact.
-- Structured output enforces response shape, not correctness. Review the explanation and original vacancy before acting.
+- `qwen3:1.7b` is a small local model. Its requirement extraction can be inconsistent or overly literal and must be treated as decision support, not fact.
+- Structured output enforces response shape, not extraction correctness. Review the deterministic explanation and original vacancy before acting.
 - Results can change after model updates, model changes, profile edits, or prompt revisions; model name, profile hash, and prompt version are stored for traceability.
 - Long vacancy descriptions are truncated at the configured character limit before evaluation.
 - The prompt explicitly treats vacancy text as untrusted data, but prompt injection defenses are not an absolute security boundary.
+- Rating 1 evaluations remain in technical history. There is no recommended-vacancy endpoint in this iteration; any future recommendation query must exclude rating 1 without deleting vacancies or evaluation history.

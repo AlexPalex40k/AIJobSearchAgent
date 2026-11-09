@@ -86,9 +86,18 @@ public sealed class BenchmarkRunner(IJobMatchingService matchingService)
             BenchmarkProfileHash = profileSnapshot.ProfileHash,
             ModelName = configuredModel,
             PromptVersion = JobMatchingPrompt.Version,
+            ReferenceLabelsCompatible = string.Equals(
+                datasetSnapshot.Dataset.MatchingVersion,
+                JobMatchingPrompt.Version,
+                StringComparison.Ordinal),
             ExecutedAt = DateTimeOffset.UtcNow,
             CaseFilter = caseFilter,
-            AggregateMetrics = BenchmarkMetricsCalculator.Calculate(results),
+            AggregateMetrics = BenchmarkMetricsCalculator.Calculate(
+                results,
+                string.Equals(
+                    datasetSnapshot.Dataset.MatchingVersion,
+                    JobMatchingPrompt.Version,
+                    StringComparison.Ordinal)),
             CaseResults = results
         };
     }

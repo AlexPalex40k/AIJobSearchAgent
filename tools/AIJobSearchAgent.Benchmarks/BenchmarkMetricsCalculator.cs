@@ -6,13 +6,18 @@ public static class BenchmarkMetricsCalculator
 {
     private const int MinimumP95SampleSize = 20;
 
-    public static BenchmarkAggregateMetrics Calculate(IReadOnlyList<BenchmarkCaseResult> results)
+    public static BenchmarkAggregateMetrics Calculate(
+        IReadOnlyList<BenchmarkCaseResult> results,
+        bool includeApprovedLabels = true)
     {
         var successful = results
             .Where(result => result.EvaluationStatus == EvaluationStatus.Succeeded && result.PredictedRating.HasValue)
             .ToArray();
         var scoredApproved = successful
-            .Where(result => result.LabelStatus == ReferenceLabelStatus.Approved && result.ExpectedRating.HasValue)
+            .Where(result =>
+                includeApprovedLabels &&
+                result.LabelStatus == ReferenceLabelStatus.Approved &&
+                result.ExpectedRating.HasValue)
             .ToArray();
         var failedCount = results.Count(result => result.EvaluationStatus == EvaluationStatus.Failed);
         var timedOutCount = results.Count(result => result.EvaluationStatus == EvaluationStatus.TimedOut);

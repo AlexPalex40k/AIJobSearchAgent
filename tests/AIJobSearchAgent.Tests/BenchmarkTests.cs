@@ -160,6 +160,20 @@ public sealed class BenchmarkTests
     }
 
     [Fact]
+    public void Metrics_DoNotReuseApprovedLabelsFromAnIncompatibleRatingRubric()
+    {
+        var metrics = BenchmarkMetricsCalculator.Calculate(
+        [
+            CreateResult("old-rubric-label", 5, 5, ReferenceLabelStatus.Approved)
+        ], includeApprovedLabels: false);
+
+        Assert.Equal(1, metrics.ApprovedLabelCount);
+        Assert.Null(metrics.ExactMatchAccuracy);
+        Assert.Null(metrics.WithinOnePointAccuracy);
+        Assert.Null(metrics.MeanAbsoluteError);
+    }
+
+    [Fact]
     public void Metrics_CalculateMeanAbsoluteErrorForSuccessfulApprovedLabels()
     {
         var metrics = BenchmarkMetricsCalculator.Calculate(

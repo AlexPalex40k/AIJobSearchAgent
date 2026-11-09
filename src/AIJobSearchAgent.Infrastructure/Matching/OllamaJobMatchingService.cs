@@ -15,6 +15,7 @@ namespace AIJobSearchAgent.Infrastructure.Matching;
 public sealed class OllamaJobMatchingService(
     HttpClient httpClient,
     IOptions<OllamaOptions> options,
+    JobMatchCalculator calculator,
     ILogger<OllamaJobMatchingService> logger) : IJobMatchingService
 {
     private static readonly JsonElement ResponseSchema = CreateResponseSchema();
@@ -24,6 +25,8 @@ public sealed class OllamaJobMatchingService(
         PropertyNameCaseInsensitive = false,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
     };
+    private static readonly HashSet<string> SupportedLanguageLevels =
+        new(["A1", "A2", "B1", "B2", "C1", "C2", "native"], StringComparer.OrdinalIgnoreCase);
 
     public async Task<JobMatchResult> EvaluateAsync(
         JobVacancy vacancy,
@@ -43,10 +46,7 @@ public sealed class OllamaJobMatchingService(
                 new OllamaMessage("system", JobMatchingPrompt.SystemInstructions),
                 new OllamaMessage(
                     "user",
-                    JobMatchingPrompt.CreateUserMessage(
-                        vacancy,
-                        profile,
-                        options.Value.MaxDescriptionCharacters))
+                    JobMatchingPrompt.CreateUserMessage(vacancy, options.Value.MaxDescriptionCharacters))
             ]
         };
 
@@ -69,10 +69,10 @@ public sealed class OllamaJobMatchingService(
                 throw CreateFailure("Ollama returned an incomplete response.", configuredModel);
             }
 
-            OllamaMatchOutput? output;
+            OllamaRequirementsOutput? output;
             try
             {
-                output = JsonSerializer.Deserialize<OllamaMatchOutput>(
+                output = JsonSerializer.Deserialize<OllamaRequirementsOutput>(
                     ollamaResponse.Message.Content,
                     StructuredOutputSerializerOptions);
             }
@@ -82,42 +82,22 @@ public sealed class OllamaJobMatchingService(
             }
 
             ValidateOutput(output, configuredModel);
-            var contradictorySkills = FindContradictorySkills(
-                output!.MatchedSkills!,
-                output.MissingRequiredSkills!,
-                output.MissingOptionalSkills!);
-            if (contradictorySkills.Count > 0)
-            {
-                logger.LogWarning(
-                    "Ollama classified the same skills in contradictory categories for vacancy {VacancyId}: {Skills}",
-                    vacancy.Id,
-                    string.Join(", ", contradictorySkills));
-            }
-
-            var knownSkills = profile.TechnicalSkills
-                .Where(skill => !string.IsNullOrWhiteSpace(skill.Name))
-                .GroupBy(skill => skill.Name.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First().Name.Trim(), StringComparer.OrdinalIgnoreCase);
-            var explanation = output!.Explanation!.Trim();
-            if (string.IsNullOrWhiteSpace(vacancy.Description) &&
-                !explanation.StartsWith("Insufficient information:", StringComparison.OrdinalIgnoreCase))
-            {
-                explanation = $"Insufficient information: the vacancy description is empty. {explanation}";
-            }
+            var requirements = new ExtractedJobRequirements(
+                NormalizeSkills(output!.RequiredSkills!),
+                NormalizeSkills(output.OptionalSkills!),
+                output.HasClearRequirements,
+                output.MinimumYearsProfessionalExperience,
+                output.RequiredLanguages!
+                    .Select(language => new RequiredLanguage(language!.Language!.Trim(), language.MinimumLevel?.Trim()))
+                    .ToArray());
+            var calculation = calculator.Calculate(requirements, profile);
 
             return new JobMatchResult(
-                output.Rating,
-                NormalizeSkills(output.MatchedSkills!)
-                    .Where(knownSkills.ContainsKey)
-                    .Select(skill => knownSkills[skill])
-                    .ToArray(),
-                NormalizeSkills(output.MissingRequiredSkills!)
-                    .Where(skill => !knownSkills.ContainsKey(skill))
-                    .ToArray(),
-                NormalizeSkills(output.MissingOptionalSkills!)
-                    .Where(skill => !knownSkills.ContainsKey(skill))
-                    .ToArray(),
-                explanation,
+                calculation.Rating,
+                calculation.MatchedSkills,
+                calculation.MissingRequiredSkills,
+                calculation.MissingOptionalSkills,
+                calculation.Explanation,
                 string.IsNullOrWhiteSpace(ollamaResponse.Model) ? configuredModel : ollamaResponse.Model,
                 JobMatchingPrompt.Version,
                 DateTimeOffset.UtcNow);
@@ -147,21 +127,20 @@ public sealed class OllamaJobMatchingService(
         }
     }
 
-    private static void ValidateOutput(OllamaMatchOutput? output, string model)
+    private static void ValidateOutput(OllamaRequirementsOutput? output, string model)
     {
         if (output is null ||
-            output.Rating is < 1 or > 5 ||
-            output.MatchedSkills is null ||
-            output.MissingRequiredSkills is null ||
-            output.MissingOptionalSkills is null ||
-            string.IsNullOrWhiteSpace(output.Explanation) ||
-            output.Explanation.Length > 10_000 ||
-            HasInvalidSkillList(output.MatchedSkills) ||
-            HasInvalidSkillList(output.MissingRequiredSkills) ||
-            HasInvalidSkillList(output.MissingOptionalSkills))
+            output.RequiredSkills is null ||
+            output.OptionalSkills is null ||
+            output.RequiredLanguages is null ||
+            output.MinimumYearsProfessionalExperience is < 0 or > 100 ||
+            HasInvalidSkillList(output.RequiredSkills) ||
+            HasInvalidSkillList(output.OptionalSkills) ||
+            output.RequiredLanguages.Count > 20 ||
+            output.RequiredLanguages.Any(IsInvalidLanguage))
         {
             throw CreateFailure(
-                "Ollama structured output failed validation. Rating must be 1-5 and all required fields must be present.",
+                "Ollama structured output failed validation. All required fields must be present and valid.",
                 model);
         }
     }
@@ -169,21 +148,16 @@ public sealed class OllamaJobMatchingService(
     private static bool HasInvalidSkillList(IReadOnlyCollection<string?> skills) =>
         skills.Count > 100 || skills.Any(skill => string.IsNullOrWhiteSpace(skill) || skill.Length > 100);
 
+    private static bool IsInvalidLanguage(OllamaRequiredLanguage? language) =>
+        language is null ||
+        string.IsNullOrWhiteSpace(language.Language) ||
+        language.Language.Length > 100 ||
+        language.MinimumLevel is { Length: > 20 } ||
+        language.MinimumLevel is not null && !SupportedLanguageLevels.Contains(language.MinimumLevel.Trim());
+
     private static IReadOnlyList<string> NormalizeSkills(IEnumerable<string?> skills) => skills
-        .Where(skill => !string.IsNullOrWhiteSpace(skill))
         .Select(skill => skill!.Trim())
         .Distinct(StringComparer.OrdinalIgnoreCase)
-        .ToArray();
-
-    private static IReadOnlyList<string> FindContradictorySkills(
-        params IReadOnlyCollection<string?>[] classifications) => classifications
-        .SelectMany((skills, classification) => skills
-            .Where(skill => !string.IsNullOrWhiteSpace(skill))
-            .Select(skill => new { Skill = skill!.Trim(), Classification = classification }))
-        .GroupBy(item => item.Skill, StringComparer.OrdinalIgnoreCase)
-        .Where(group => group.Select(item => item.Classification).Distinct().Count() > 1)
-        .Select(group => group.First().Skill)
-        .OrderBy(skill => skill, StringComparer.OrdinalIgnoreCase)
         .ToArray();
 
     private static JobMatchingException CreateFailure(
@@ -201,18 +175,30 @@ public sealed class OllamaJobMatchingService(
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "rating": { "type": "integer", "minimum": 1, "maximum": 5 },
-            "matchedSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
-            "missingRequiredSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
-            "missingOptionalSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
-            "explanation": { "type": "string", "minLength": 1, "maxLength": 10000 }
+            "requiredSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+            "optionalSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+            "hasClearRequirements": { "type": "boolean" },
+            "minimumYearsProfessionalExperience": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+            "requiredLanguages": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "language": { "type": "string", "minLength": 1, "maxLength": 100 },
+                  "minimumLevel": { "type": ["string", "null"], "enum": ["A1", "A2", "B1", "B2", "C1", "C2", "native", null] }
+                },
+                "required": ["language", "minimumLevel"]
+              }
+            }
           },
           "required": [
-            "rating",
-            "matchedSkills",
-            "missingRequiredSkills",
-            "missingOptionalSkills",
-            "explanation"
+            "requiredSkills",
+            "optionalSkills",
+            "hasClearRequirements",
+            "minimumYearsProfessionalExperience",
+            "requiredLanguages"
           ]
         }
         """).RootElement.Clone();
@@ -252,26 +238,37 @@ public sealed class OllamaJobMatchingService(
         public string? Content { get; init; }
     }
 
-    private sealed class OllamaMatchOutput
+    private sealed class OllamaRequirementsOutput
     {
         [JsonRequired]
-        [JsonPropertyName("rating")]
-        public int Rating { get; init; }
+        [JsonPropertyName("requiredSkills")]
+        public List<string?>? RequiredSkills { get; init; }
 
         [JsonRequired]
-        [JsonPropertyName("matchedSkills")]
-        public List<string?>? MatchedSkills { get; init; }
+        [JsonPropertyName("optionalSkills")]
+        public List<string?>? OptionalSkills { get; init; }
 
         [JsonRequired]
-        [JsonPropertyName("missingRequiredSkills")]
-        public List<string?>? MissingRequiredSkills { get; init; }
+        [JsonPropertyName("hasClearRequirements")]
+        public bool HasClearRequirements { get; init; }
 
         [JsonRequired]
-        [JsonPropertyName("missingOptionalSkills")]
-        public List<string?>? MissingOptionalSkills { get; init; }
+        [JsonPropertyName("minimumYearsProfessionalExperience")]
+        public decimal? MinimumYearsProfessionalExperience { get; init; }
 
         [JsonRequired]
-        [JsonPropertyName("explanation")]
-        public string? Explanation { get; init; }
+        [JsonPropertyName("requiredLanguages")]
+        public List<OllamaRequiredLanguage?>? RequiredLanguages { get; init; }
+    }
+
+    private sealed class OllamaRequiredLanguage
+    {
+        [JsonRequired]
+        [JsonPropertyName("language")]
+        public string? Language { get; init; }
+
+        [JsonRequired]
+        [JsonPropertyName("minimumLevel")]
+        public string? MinimumLevel { get; init; }
     }
 }

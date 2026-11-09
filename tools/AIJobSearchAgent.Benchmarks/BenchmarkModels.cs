@@ -13,6 +13,8 @@ public enum ReferenceLabelStatus
 public sealed class BenchmarkDataset
 {
     public required string DatasetVersion { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? MatchingVersion { get; init; }
     public required IReadOnlyList<BenchmarkCase> Cases { get; init; }
 }
 
@@ -100,6 +102,7 @@ public sealed class BenchmarkRunResult
     public required string BenchmarkProfileHash { get; init; }
     public required string ModelName { get; init; }
     public required string PromptVersion { get; init; }
+    public bool ReferenceLabelsCompatible { get; init; }
     public required DateTimeOffset ExecutedAt { get; init; }
     public string? CaseFilter { get; init; }
     public required BenchmarkAggregateMetrics AggregateMetrics { get; init; }

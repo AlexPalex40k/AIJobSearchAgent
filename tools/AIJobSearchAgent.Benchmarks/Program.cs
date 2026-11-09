@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AIJobSearchAgent.Application.Abstractions;
+using AIJobSearchAgent.Application.Services;
 using AIJobSearchAgent.Infrastructure.Matching;
 using AIJobSearchAgent.Infrastructure.Profiles;
 using Microsoft.Extensions.DependencyInjection;
@@ -63,6 +64,7 @@ internal static class Program
         var ollamaOptions = new OllamaOptions { Model = commandLine.Model };
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton<JobMatchCalculator>();
         services.AddSingleton<IOptions<OllamaOptions>>(Options.Create(ollamaOptions));
         services.AddHttpClient<IJobMatchingService, OllamaJobMatchingService>(client =>
         {
@@ -85,7 +87,12 @@ internal static class Program
 
         Console.WriteLine($"Benchmark run {result.RunId} saved to {resultPath}");
         Console.WriteLine(JsonSerializer.Serialize(result.AggregateMetrics, BenchmarkJson.SerializerOptions));
-        if (result.AggregateMetrics.ExactMatchAccuracy is null)
+        if (!result.ReferenceLabelsCompatible)
+        {
+            Console.WriteLine(
+                $"Accuracy and MAE were not calculated because dataset '{result.DatasetVersion}' has no human-approved labels for matching version '{result.PromptVersion}'.");
+        }
+        else if (result.AggregateMetrics.ExactMatchAccuracy is null)
         {
             Console.WriteLine("Ground-truth accuracy and MAE were not calculated because no approved labels were successfully scored.");
         }

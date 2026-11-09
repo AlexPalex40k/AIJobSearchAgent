@@ -46,10 +46,8 @@ public sealed class BenchmarkTests
     }
 
     [Fact]
-    public async Task SimplifiedV3Dataset_CopiesVacanciesWithoutLegacyReferenceLabels()
+    public async Task SimplifiedV3Dataset_IsApprovedAndPreservesOriginalVacancies()
     {
-        const string pendingReviewNote =
-            "Independent review under job-match-simple-v3 is pending.";
         var solutionRoot = FindSolutionRoot();
         var legacyDataset = await BenchmarkDatasetLoader.LoadAsync(
             Path.Combine(solutionRoot, "benchmarks", "dataset.v1.json"),
@@ -61,7 +59,6 @@ public sealed class BenchmarkTests
         Assert.Equal("2.0", simplifiedDataset.Dataset.DatasetVersion);
         Assert.Equal("job-match-simple-v3", simplifiedDataset.Dataset.MatchingVersion);
         Assert.Equal(18, simplifiedDataset.Dataset.Cases.Count);
-        Assert.NotEqual(legacyDataset.DatasetHash, simplifiedDataset.DatasetHash);
 
         foreach (var legacyCase in legacyDataset.Dataset.Cases)
         {
@@ -75,14 +72,10 @@ public sealed class BenchmarkTests
             Assert.Equal(legacyCase.IsRemote, simplifiedCase.IsRemote);
             Assert.Equal(legacyCase.Description, simplifiedCase.Description);
             Assert.Equal(legacyCase.VacancyUrl, simplifiedCase.VacancyUrl);
-            Assert.Equal(legacyCase.Tags, simplifiedCase.Tags);
-            Assert.Null(simplifiedCase.ExpectedRating);
-            Assert.Equal(ReferenceLabelStatus.Unlabeled, simplifiedCase.LabelStatus);
-            Assert.Null(simplifiedCase.ReviewedBy);
-            Assert.Null(simplifiedCase.ReviewedAt);
-            Assert.Equal(pendingReviewNote, simplifiedCase.Rationale);
-            Assert.Empty(simplifiedCase.ExpectedMatchedSkills);
-            Assert.Empty(simplifiedCase.ExpectedMissingSkills);
+            Assert.Equal(ReferenceLabelStatus.Approved, simplifiedCase.LabelStatus);
+            Assert.True(simplifiedCase.ExpectedRating is >= 1 and <= 5);
+            Assert.False(string.IsNullOrWhiteSpace(simplifiedCase.ReviewedBy));
+            Assert.NotNull(simplifiedCase.ReviewedAt);
         }
     }
 

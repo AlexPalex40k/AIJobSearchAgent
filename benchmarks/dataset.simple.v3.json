@@ -38,11 +38,11 @@
       "location": "Remote within Hungary",
       "isRemote": true,
       "description": "Develop ASP.NET Core APIs backed by SQL and Entity Framework Core. C# and four years of commercial development are required. RabbitMQ is required for the integration layer; Docker is useful.",
-      "expectedRating": 4,
+      "expectedRating": 3,
       "labelStatus": "approved",
       "reviewedBy": "human-review",
       "reviewedAt": "2026-11-09T22:00:00Z",
-      "rationale": "The stack requirements (C#, ASP.NET Core, SQL, Entity Framework Core) and the 4-year experience requirement are met, but RabbitMQ is explicitly required for the integration layer and is absent from the profile, so only part of the required skills match. Docker (listed as useful) is covered. Remote within Hungary fits the remote-preferred setting.",
+      "rationale": "The core .NET stack (C#, ASP.NET Core, SQL, and Entity Framework Core) and the four-year experience requirement match the candidate profile, and Docker is covered. RabbitMQ is explicitly mandatory for the integration layer but is absent from the candidate profile, so part of the central required technical stack is missing.",
       "expectedMatchedSkills": [
         "C#",
         "ASP.NET Core",
@@ -153,7 +153,7 @@
       "labelStatus": "approved",
       "reviewedBy": "human-review",
       "reviewedAt": "2026-11-09T22:00:00Z",
-      "rationale": "The technologies (C#, ASP.NET Core, SQL) match the profile, but the vacancy is explicitly entry-level for 0-1 year of experience, with close supervision and fixed junior compensation, while the candidate is a senior with 6 years. The required experience level does not match, so only part of the requirements is satisfied. The candidate is overqualified and the role does not fit the preferred senior job titles.",
+      "rationale": "All required technical skills (C#, ASP.NET Core, and SQL) match the candidate profile. Junior seniority, overqualification, and the vacancy's zero-to-one-year experience range do not reduce the rating under the simplified rubric.",
       "expectedMatchedSkills": [
         "C#",
         "ASP.NET Core",
@@ -278,7 +278,6 @@
         "devops",
         "platform",
         "technology-mismatch",
-        "Kafka",
         "Linux"
       ]
     },

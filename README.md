@@ -253,18 +253,18 @@ The benchmark runner exercises the same `IJobMatchingService`, requirement extra
 The committed inputs are intentionally synthetic:
 
 - `benchmarks/dataset.v1.json` preserves the 18 fictional vacancies and approved labels from the earlier rating system. It is retained unchanged for historical reproducibility.
-- `benchmarks/dataset.simple.v3.json` copies the same vacancy IDs, titles, descriptions, locations, tags, and other vacancy context for independent review under `job-match-simple-v3`. Its reference ratings and expected skill lists are intentionally empty.
+- `benchmarks/dataset.simple.v3.json` contains the same 18 vacancy identities and descriptions with independently reviewed, approved reference labels for `job-match-simple-v3`.
 - `benchmarks/candidate-profile.synthetic.json` is a benchmark-only profile and does not read or contain the private `candidate-profile.json`.
 
-The 18 approved ratings in `dataset.v1.json` are not authoritative ground truth for `job-match-simple-v3`. The new dataset declares `"datasetVersion": "2.0"` and `"matchingVersion": "job-match-simple-v3"`, but every case starts with `expectedRating: null` and `labelStatus: "unlabeled"`. Runs can therefore record predictions, failures, distributions, and latency without presenting model output as reference truth. Accuracy and MAE become available only after human-reviewed labels are approved.
+The 18 approved ratings in `dataset.v1.json` remain historical labels and are not authoritative for `job-match-simple-v3`. The independently reviewed v3 dataset declares `"datasetVersion": "2.0"` and `"matchingVersion": "job-match-simple-v3"`; all 18 cases have approved ratings and reviewer metadata. The runner can therefore calculate accuracy and MAE from successful evaluations while continuing to report failures, distributions, and latency. Model predictions must not be copied into the reference labels.
 
 Synthetic cases deliberately omit `vacancyUrl`: their companies and vacancies do not exist, so the dataset must not invent links that appear to identify external listings. A future benchmark case based on a real vacancy may set `vacancyUrl` to its actual absolute HTTP or HTTPS source URL. Dataset validation rejects relative, malformed, and non-HTTP(S) URLs. Because external listings can change or disappear, the dataset remains a reviewed snapshot rather than fetching live vacancy content during a run.
 
 Generated files are written under the ignored `benchmarks/results/` directory. Each run creates a new JSON file containing dataset and profile hashes, model and prompt versions, aggregate metrics, individual predictions, latency, and safe failure information. Every new case result includes its stable case ID plus the evaluated vacancy title and description, and includes the source URL when the dataset supplied one. This makes the evaluated vacancy identifiable even when a real URL is absent or later expires. Raw prompts and personal data are not stored.
 
-### Review and approve reference labels
+### Approved simplified reference labels
 
-Review `dataset.simple.v3.json` against the synthetic profile using this simplified rating rubric:
+The approved labels in `dataset.simple.v3.json` were reviewed against the synthetic profile using this simplified rating rubric:
 
 - **5:** All mandatory and optional technical skills match, with no known major incompatibilities.
 - **4:** Mandatory technical skills match, but some optional skills are missing.
@@ -274,19 +274,11 @@ Review `dataset.simple.v3.json` against the synthetic profile using this simplif
 
 Explicit overall experience and mandatory language requirements also affect the judgment under the currently documented matching rules. In particular, an unknown mandatory language capability is not a confirmed mismatch, but caps the rating at 3; an explicitly lower CEFR level remains a confirmed mismatch. Do not infer requirements absent from the vacancy.
 
-Approve labels case by case using this workflow:
-
-1. Read the synthetic profile and vacancy without consulting the model's prediction or a previous benchmark result.
-2. Identify the vacancy's verified mandatory and optional technologies, explicit overall experience, and mandatory language requirements, then apply the 1-5 rubric consistently.
-3. Set `expectedRating` to the independently reviewed value, replace the pending-review rationale with a concise justification, and populate expected skill lists only when the review supports them.
-4. Set `labelStatus` to `approved`, add a non-empty `reviewedBy` value, and add `reviewedAt` as an ISO 8601 timestamp such as `2026-11-07T12:00:00Z`.
-5. Prefer a second human review for disputed or ambiguous cases. Record the agreed judgment rather than copying an evaluated model's answer.
-
-Dataset validation rejects approved labels without reviewer metadata and rejects ratings outside 1-5. Editing or approving a label changes the dataset hash, preventing silent comparison with runs that used earlier judgments. The runner calculates accuracy and MAE only from successfully evaluated, approved cases in a dataset whose `matchingVersion` matches the current prompt version; remaining unlabeled cases stay outside the denominator.
+Future label changes must be reviewed independently of model predictions. Update the rating, rationale, and expected skill lists together, retain non-empty `reviewedBy` and `reviewedAt` metadata, and prefer a second human review for disputed cases. Dataset validation rejects approved labels without reviewer metadata and ratings outside 1-5. Any edit changes the dataset hash, preventing silent comparison with runs that used earlier judgments.
 
 ### Run an experiment
 
-Start Ollama and pull the model first:
+Start Ollama, pull the model, and run the approved simplified dataset:
 
 ```powershell
 ollama pull qwen3:4b

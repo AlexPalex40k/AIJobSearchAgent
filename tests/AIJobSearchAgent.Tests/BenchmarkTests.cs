@@ -46,6 +46,47 @@ public sealed class BenchmarkTests
     }
 
     [Fact]
+    public async Task SimplifiedV3Dataset_CopiesVacanciesWithoutLegacyReferenceLabels()
+    {
+        const string pendingReviewNote =
+            "Independent review under job-match-simple-v3 is pending.";
+        var solutionRoot = FindSolutionRoot();
+        var legacyDataset = await BenchmarkDatasetLoader.LoadAsync(
+            Path.Combine(solutionRoot, "benchmarks", "dataset.v1.json"),
+            CancellationToken.None);
+        var simplifiedDataset = await BenchmarkDatasetLoader.LoadAsync(
+            Path.Combine(solutionRoot, "benchmarks", "dataset.simple.v3.json"),
+            CancellationToken.None);
+
+        Assert.Equal("2.0", simplifiedDataset.Dataset.DatasetVersion);
+        Assert.Equal("job-match-simple-v3", simplifiedDataset.Dataset.MatchingVersion);
+        Assert.Equal(18, simplifiedDataset.Dataset.Cases.Count);
+        Assert.NotEqual(legacyDataset.DatasetHash, simplifiedDataset.DatasetHash);
+
+        foreach (var legacyCase in legacyDataset.Dataset.Cases)
+        {
+            var simplifiedCase = Assert.Single(
+                simplifiedDataset.Dataset.Cases,
+                benchmarkCase => benchmarkCase.Id == legacyCase.Id);
+
+            Assert.Equal(legacyCase.VacancyTitle, simplifiedCase.VacancyTitle);
+            Assert.Equal(legacyCase.Company, simplifiedCase.Company);
+            Assert.Equal(legacyCase.Location, simplifiedCase.Location);
+            Assert.Equal(legacyCase.IsRemote, simplifiedCase.IsRemote);
+            Assert.Equal(legacyCase.Description, simplifiedCase.Description);
+            Assert.Equal(legacyCase.VacancyUrl, simplifiedCase.VacancyUrl);
+            Assert.Equal(legacyCase.Tags, simplifiedCase.Tags);
+            Assert.Null(simplifiedCase.ExpectedRating);
+            Assert.Equal(ReferenceLabelStatus.Unlabeled, simplifiedCase.LabelStatus);
+            Assert.Null(simplifiedCase.ReviewedBy);
+            Assert.Null(simplifiedCase.ReviewedAt);
+            Assert.Equal(pendingReviewNote, simplifiedCase.Rationale);
+            Assert.Empty(simplifiedCase.ExpectedMatchedSkills);
+            Assert.Empty(simplifiedCase.ExpectedMissingSkills);
+        }
+    }
+
+    [Fact]
     public void DatasetValidation_AcceptsValidDatasetAndRejectsDuplicateCaseIds()
     {
         var valid = new BenchmarkDataset

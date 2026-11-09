@@ -1,0 +1,369 @@
+{
+  "datasetVersion": "2.0",
+  "matchingVersion": "job-match-simple-v3",
+  "cases": [
+    {
+      "id": "dotnet-backend-excellent",
+      "vacancyTitle": "Senior .NET Backend Engineer",
+      "company": "Northstar Systems",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Build and maintain C# and ASP.NET Core services and REST APIs. Use Entity Framework Core, SQL, xUnit, Docker, and code review. The role asks for at least five years of backend experience and professional English.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "backend",
+        "excellent-match",
+        "remote"
+      ]
+    },
+    {
+      "id": "dotnet-backend-message-broker-gap",
+      "vacancyTitle": ".NET Backend Developer",
+      "company": "Copper Finch Labs",
+      "location": "Remote within Hungary",
+      "isRemote": true,
+      "description": "Develop ASP.NET Core APIs backed by SQL and Entity Framework Core. C# and four years of commercial development are required. RabbitMQ is required for the integration layer; Docker is useful.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "backend",
+        "missing-required-skill"
+      ]
+    },
+    {
+      "id": "dotnet-fullstack-react-required",
+      "vacancyTitle": "Senior Full-Stack .NET and React Engineer",
+      "company": "Blue Orchard Software",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Own ASP.NET Core APIs and a React/TypeScript user interface. Strong production experience in C#, React, TypeScript, SQL, and automated testing is required. Work is split evenly between frontend and backend.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "full-stack",
+        "frontend-gap"
+      ]
+    },
+    {
+      "id": "dotnet-fullstack-angular-optional",
+      "vacancyTitle": ".NET Engineer with Optional Angular",
+      "company": "Riverglass Digital",
+      "location": "Budapest, Hungary - hybrid",
+      "isRemote": false,
+      "description": "Create C# and ASP.NET Core services using SQL and Docker. Five years of backend experience is expected. Angular is optional and used by another team. Two office days per month are required in Budapest.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "backend",
+        "optional-skill",
+        "hybrid"
+      ]
+    },
+    {
+      "id": "wpf-desktop-required",
+      "vacancyTitle": "Senior WPF Desktop Developer",
+      "company": "Lantern Desktop Works",
+      "location": "Budapest, Hungary",
+      "isRemote": false,
+      "description": "Maintain a large Windows desktop product. Advanced WPF, XAML, MVVM, and C# desktop development are mandatory. ASP.NET Core experience is not relevant. Work is on site four days each week.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "desktop",
+        "wpf",
+        "location-restriction"
+      ]
+    },
+    {
+      "id": "junior-dotnet-overqualified",
+      "vacancyTitle": "Junior .NET Developer",
+      "company": "Pebble Creek Apps",
+      "location": "Remote within Hungary",
+      "isRemote": true,
+      "description": "Entry-level role for developers with zero to one year of experience. Learn C#, ASP.NET Core, and SQL with close supervision. The compensation and responsibilities are fixed at junior level.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "junior",
+        "seniority-mismatch"
+      ]
+    },
+    {
+      "id": "principal-dotnet-leadership-gap",
+      "vacancyTitle": "Principal .NET Engineering Lead",
+      "company": "Summit Ledger",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Set architecture across six teams and manage engineering managers. Requires twelve years of commercial development, five years managing managers, distributed systems leadership, C#, and Azure platform ownership.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "principal",
+        "seniority-mismatch",
+        "leadership"
+      ]
+    },
+    {
+      "id": "python-backend-role",
+      "vacancyTitle": "Senior Python Backend Engineer",
+      "company": "Foxglove Analytics",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Build production services in Python, FastAPI, PostgreSQL, and Celery. At least five years of commercial Python development is mandatory. Docker and REST API knowledge are also required.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "python",
+        "backend",
+        "technology-mismatch"
+      ]
+    },
+    {
+      "id": "java-spring-role",
+      "vacancyTitle": "Senior Java Platform Developer",
+      "company": "Maple Circuit",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Develop Java 21 and Spring Boot microservices. Five years of recent commercial Java experience, Hibernate, Kafka, and Maven are required. SQL and Docker are used daily.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "java",
+        "backend",
+        "technology-mismatch"
+      ]
+    },
+    {
+      "id": "devops-kubernetes-terraform",
+      "vacancyTitle": "Senior DevOps and Platform Engineer",
+      "company": "Cloud Harbor Operations",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Own Kubernetes clusters, Terraform modules, Helm releases, Linux operations, and incident response. Five years of production platform engineering is required. Docker and Azure are part of the environment; application coding is occasional.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "devops",
+        "platform",
+        "technology-mismatch"
+      ]
+    },
+    {
+      "id": "english-c1-dotnet",
+      "vacancyTitle": "Senior .NET API Engineer",
+      "company": "Clearwater Services",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Build C# ASP.NET Core APIs with SQL and Entity Framework Core. Daily customer workshops require English at CEFR C1 or higher. Five years of backend experience is required.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "language-restriction",
+        "english"
+      ]
+    },
+    {
+      "id": "german-required-dotnet",
+      "vacancyTitle": ".NET Consultant",
+      "company": "Alpine Bridge Consulting",
+      "location": "Remote from the European Union",
+      "isRemote": true,
+      "description": "Implement ASP.NET Core and SQL systems for German-speaking customers. Fluent German at C1 is mandatory for all meetings and documentation. C# and four years of consulting or development experience are required.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "language-restriction",
+        "german"
+      ]
+    },
+    {
+      "id": "berlin-onsite-relocation",
+      "vacancyTitle": "Senior Backend Engineer",
+      "company": "Bricklane Mobility",
+      "location": "Berlin, Germany",
+      "isRemote": false,
+      "description": "Develop C# and ASP.NET Core mobility services with SQL. This is a fully on-site position in Berlin from the first day; remote work is unavailable and relocation is required before starting.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "location-restriction",
+        "relocation"
+      ]
+    },
+    {
+      "id": "budapest-hybrid-dotnet",
+      "vacancyTitle": "Senior C# Backend Developer",
+      "company": "Danube Lantern",
+      "location": "Budapest, Hungary - hybrid",
+      "isRemote": false,
+      "description": "Build ASP.NET Core services using C#, SQL, Entity Framework Core, and xUnit. Six years of experience is preferred. The team meets in its Budapest office two days each week and uses English internally.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "hybrid",
+        "budapest"
+      ]
+    },
+    {
+      "id": "incomplete-dotnet-description",
+      "vacancyTitle": ".NET Developer",
+      "company": "Quiet Pine Software",
+      "location": "Remote",
+      "isRemote": true,
+      "description": "Join our growing development team. More details will be discussed during the interview.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "incomplete-description",
+        "uncertainty"
+      ]
+    },
+    {
+      "id": "ambiguous-modern-stack",
+      "vacancyTitle": "Experienced Software Engineer",
+      "company": "Mosaic Field Labs",
+      "location": "Europe - flexible",
+      "isRemote": true,
+      "description": "Work on a modern service platform with an experienced team. We value clean code, ownership, cloud awareness, and broad engineering judgment. The exact stack varies by project.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "ambiguous",
+        "incomplete-description",
+        "uncertainty"
+      ]
+    },
+    {
+      "id": "frontend-react-specialist",
+      "vacancyTitle": "Senior React Frontend Specialist",
+      "company": "Sunbeam Interface Studio",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Own a React and TypeScript design system. Requires five years of production React, advanced CSS, accessibility, browser performance, and frontend testing. Backend development is outside the role.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "frontend",
+        "react",
+        "technology-mismatch"
+      ]
+    },
+    {
+      "id": "azure-heavy-dotnet-platform",
+      "vacancyTitle": "Senior Azure .NET Platform Engineer",
+      "company": "Silver Kite Cloud",
+      "location": "Remote within the European Union",
+      "isRemote": true,
+      "description": "Develop C# services and own Azure Functions, Service Bus, API Management, Bicep, monitoring, and production operations. Three years of hands-on Azure platform ownership is required, together with ASP.NET Core and Docker.",
+      "expectedRating": null,
+      "labelStatus": "unlabeled",
+      "reviewedBy": null,
+      "reviewedAt": null,
+      "rationale": "Independent review under job-match-simple-v3 is pending.",
+      "expectedMatchedSkills": [],
+      "expectedMissingSkills": [],
+      "tags": [
+        "dotnet",
+        "azure",
+        "cloud-gap"
+      ]
+    }
+  ]
+}

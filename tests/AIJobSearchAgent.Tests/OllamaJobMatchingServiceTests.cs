@@ -33,7 +33,7 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(4, result.Rating);
         Assert.Equal(["C#", "ASP.NET Core"], result.MatchedSkills);
         Assert.Equal(["Docker"], result.MissingOptionalSkills);
-        Assert.Equal("job-match-simple-v2", result.PromptVersion);
+        Assert.Equal("job-match-simple-v3", result.PromptVersion);
         Assert.NotNull(capturedRequest);
 
         using var requestJson = JsonDocument.Parse(capturedRequest);
@@ -123,6 +123,110 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(5, result.Rating);
         Assert.Empty(result.MissingOptionalSkills);
         Assert.Contains("optional: Docker", result.Explanation);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_ReclassifiesExplicitlyRequiredRabbitMqFromOptional()
+    {
+        using var httpClient = CreateTechnicalResponseClient(["C#"], ["RabbitMQ"]);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# is required. RabbitMQ is required."),
+            CreateProfile("C#"),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rating);
+        Assert.Equal(["RabbitMQ"], result.MissingRequiredSkills);
+        Assert.Empty(result.MissingOptionalSkills);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_ReclassifiesExplicitlyOptionalAngularFromRequired()
+    {
+        using var httpClient = CreateTechnicalResponseClient(["C#", "Angular"], []);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# is required. Angular is optional."),
+            CreateProfile("C#"),
+            CancellationToken.None);
+
+        Assert.Equal(4, result.Rating);
+        Assert.Empty(result.MissingRequiredSkills);
+        Assert.Equal(["Angular"], result.MissingOptionalSkills);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_KeepsExplicitlyUsefulDockerOptional()
+    {
+        using var httpClient = CreateTechnicalResponseClient(["C#"], ["Docker"]);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# is required. Docker is useful."),
+            CreateProfile("C#"),
+            CancellationToken.None);
+
+        Assert.Equal(4, result.Rating);
+        Assert.Equal(["Docker"], result.MissingOptionalSkills);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsYearsOfExperienceAsTechnicalSkill()
+    {
+        using var httpClient = CreateTechnicalResponseClient(["C#"], ["Six years of experience"]);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# is required. Six years of experience is required."),
+            CreateProfile("C#"),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.Empty(result.MissingOptionalSkills);
+        Assert.Contains("optional: Six years of experience", result.Explanation);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_RejectsCodeReviewAsTechnology()
+    {
+        using var httpClient = CreateTechnicalResponseClient(["C#", "code review"], []);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# is required. Responsibilities include code review."),
+            CreateProfile("C#"),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.Equal(["C#"], result.MatchedSkills);
+        Assert.Contains("required: code review", result.Explanation);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_ExcludesExplicitlyIrrelevantTechnology()
+    {
+        using var httpClient = CreateTechnicalResponseClient(["C#", "ASP.NET Core"], []);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# is required. ASP.NET Core experience is not relevant."),
+            CreateProfile("C#", "ASP.NET Core"),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.Equal(["C#"], result.MatchedSkills);
+        Assert.Contains("required: ASP.NET Core", result.Explanation);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_DoesNotInventCandidateTechnologyAbsentFromVacancyAndExtraction()
+    {
+        using var httpClient = CreateTechnicalResponseClient(["C#"], []);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# is required."),
+            CreateProfile("C#", "Kubernetes"),
+            CancellationToken.None);
+
+        Assert.Equal(5, result.Rating);
+        Assert.Equal(["C#"], result.MatchedSkills);
+        Assert.DoesNotContain("Kubernetes", result.MatchedSkills);
     }
 
     [Fact]
@@ -339,6 +443,20 @@ public sealed class OllamaJobMatchingServiceTests
             ["language"] = language,
             ["minimumLevel"] = minimumLevel
         });
+        return CreateHttpClient((_, _) => Task.FromResult(
+            JsonResponse(CreateOllamaResponse(output.ToJsonString()))));
+    }
+
+    private static HttpClient CreateTechnicalResponseClient(
+        IReadOnlyList<string> requiredSkills,
+        IReadOnlyList<string> optionalSkills)
+    {
+        var output = CreateValidStructuredOutput();
+        output["requiredSkills"] = new JsonArray(
+            requiredSkills.Select(skill => JsonValue.Create(skill)).ToArray<JsonNode?>());
+        output["optionalSkills"] = new JsonArray(
+            optionalSkills.Select(skill => JsonValue.Create(skill)).ToArray<JsonNode?>());
+        output["requiredLanguages"] = new JsonArray();
         return CreateHttpClient((_, _) => Task.FromResult(
             JsonResponse(CreateOllamaResponse(output.ToJsonString()))));
     }

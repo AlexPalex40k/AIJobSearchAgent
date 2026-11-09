@@ -44,24 +44,26 @@ public static class TechnicalSkillMatcher
         ArgumentException.ThrowIfNullOrWhiteSpace(skill);
         ArgumentNullException.ThrowIfNull(vacancyDescription);
 
+        return GetMentionPatterns(skill).Any(pattern => Regex.IsMatch(
+            vacancyDescription,
+            pattern,
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+            TimeSpan.FromMilliseconds(100)));
+    }
+
+    internal static IReadOnlyList<string> GetMentionPatterns(string skill)
+    {
         var normalizedSkill = Normalize(skill);
         var aliases = KeyToAliases.TryGetValue(normalizedSkill, out var knownAliases)
             ? knownAliases
             : [CollapseWhitespace(skill.Trim())];
 
-        return aliases.Any(alias => ContainsTokenAware(vacancyDescription, alias));
-    }
-
-    private static bool ContainsTokenAware(string text, string alias)
-    {
-        var tokens = alias.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var escapedAlias = string.Join(@"\s+", tokens.Select(Regex.Escape));
-        var pattern = $@"(?<![\p{{L}}\p{{N}}_+#]){escapedAlias}(?![\p{{L}}\p{{N}}_+#])";
-        return Regex.IsMatch(
-            text,
-            pattern,
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-            TimeSpan.FromMilliseconds(100));
+        return aliases.Select(alias =>
+        {
+            var tokens = alias.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var escapedAlias = string.Join(@"\s+", tokens.Select(Regex.Escape));
+            return $@"(?<![\p{{L}}\p{{N}}_+#]){escapedAlias}(?![\p{{L}}\p{{N}}_+#])";
+        }).ToArray();
     }
 
     private static string CollapseWhitespace(string value)

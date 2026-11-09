@@ -9,11 +9,21 @@ public sealed class JobMatchingPromptTests
     [Fact]
     public void SystemInstructions_RequireExplicitMandatoryLanguageEvidence()
     {
-        Assert.Equal("job-match-simple-v2", JobMatchingPrompt.Version);
+        Assert.Equal("job-match-simple-v3", JobMatchingPrompt.Version);
         Assert.Contains("Never assume English", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("Use minimumLevel null", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("Use native only when native proficiency is explicitly required", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("mentioned only as company, team, documentation, customer, or location context", JobMatchingPrompt.SystemInstructions);
+    }
+
+    [Fact]
+    public void SystemInstructions_DefineTechnicalRequirementClassifications()
+    {
+        Assert.Contains("explicitly calls it required or mandatory", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("optional, preferred, useful, a bonus, or nice-to-have", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("generic work practices such as code review", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("explicitly described as irrelevant", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("must not appear in both", JobMatchingPrompt.SystemInstructions);
     }
 
     [Fact]

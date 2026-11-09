@@ -103,7 +103,7 @@ public sealed class JobMatchCalculatorTests
     }
 
     [Fact]
-    public void Calculate_MissingLanguageDataIsNotTreatedAsConfirmedMismatch()
+    public void Calculate_MissingLanguageDataIsUnknownAndCapsRatingAtThree()
     {
         var requirements = CreateRequirements(
             ["C#"],
@@ -112,7 +112,26 @@ public sealed class JobMatchCalculatorTests
 
         var result = calculator.Calculate(requirements, CreateProfile(["C#"]));
 
+        Assert.Equal(3, result.Rating);
+        Assert.Contains("not verified", result.Explanation, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("not met", result.Explanation, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Calculate_ConfirmedLanguageMatchAllowsRatingFive()
+    {
+        var requirements = CreateRequirements(
+            ["C#"],
+            [],
+            requiredLanguages: [new RequiredLanguage("English", "B2")]);
+        var profile = CreateProfile(
+            ["C#"],
+            spokenLanguages: [new SpokenLanguage { Language = "English", Level = "C1" }]);
+
+        var result = calculator.Calculate(requirements, profile);
+
         Assert.Equal(5, result.Rating);
+        Assert.DoesNotContain("language requirement", result.Explanation, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

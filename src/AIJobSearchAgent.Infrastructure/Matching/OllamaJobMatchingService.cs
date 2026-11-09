@@ -34,6 +34,9 @@ public sealed class OllamaJobMatchingService(
         CancellationToken cancellationToken)
     {
         var configuredModel = options.Value.Model;
+        var suppliedDescription = JobMatchingPrompt.GetBoundedDescription(
+            vacancy,
+            options.Value.MaxDescriptionCharacters);
         var request = new OllamaChatRequest
         {
             Model = configuredModel,
@@ -90,14 +93,19 @@ public sealed class OllamaJobMatchingService(
                 output.RequiredLanguages!
                     .Select(language => new RequiredLanguage(language!.Language!.Trim(), language.MinimumLevel?.Trim()))
                     .ToArray());
-            var calculation = calculator.Calculate(requirements, profile);
+            var verification = TechnicalRequirementVerifier.Verify(requirements, suppliedDescription);
+            var calculation = calculator.Calculate(verification.VerifiedRequirements, profile);
+            var transparencyExplanation = TechnicalRequirementVerifier.CreateTransparencyExplanation(verification);
+            var explanation = transparencyExplanation is null
+                ? calculation.Explanation
+                : $"{calculation.Explanation} {transparencyExplanation}";
 
             return new JobMatchResult(
                 calculation.Rating,
                 calculation.MatchedSkills,
                 calculation.MissingRequiredSkills,
                 calculation.MissingOptionalSkills,
-                calculation.Explanation,
+                explanation,
                 string.IsNullOrWhiteSpace(ollamaResponse.Model) ? configuredModel : ollamaResponse.Model,
                 JobMatchingPrompt.Version,
                 DateTimeOffset.UtcNow);

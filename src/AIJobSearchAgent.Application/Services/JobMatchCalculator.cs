@@ -1,4 +1,3 @@
-using System.Text;
 using AIJobSearchAgent.Application.Models;
 using AIJobSearchAgent.Domain.Profiles;
 
@@ -6,23 +5,6 @@ namespace AIJobSearchAgent.Application.Services;
 
 public sealed class JobMatchCalculator
 {
-    private static readonly IReadOnlyDictionary<string, string> SkillAliases =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["c#"] = "csharp",
-            ["c sharp"] = "csharp",
-            ["csharp"] = "csharp",
-            ["ef core"] = "entityframeworkcore",
-            ["entity framework core"] = "entityframeworkcore",
-            ["entity-framework core"] = "entityframeworkcore",
-            ["asp.net core"] = "aspnetcore",
-            ["asp net core"] = "aspnetcore",
-            ["aspnet core"] = "aspnetcore",
-            ["asp.net-core"] = "aspnetcore",
-            [".net"] = "dotnet",
-            ["dotnet"] = "dotnet"
-        };
-
     private static readonly IReadOnlyDictionary<string, int> LanguageLevels =
         new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
         {
@@ -44,7 +26,7 @@ public sealed class JobMatchCalculator
 
         var candidateSkills = profile.TechnicalSkills
             .Where(skill => !string.IsNullOrWhiteSpace(skill.Name))
-            .Select(skill => NormalizeSkill(skill.Name))
+            .Select(skill => TechnicalSkillMatcher.Normalize(skill.Name))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var requiredSkills = NormalizeRequirements(requirements.RequiredSkills);
         var requiredKeys = requiredSkills.Select(skill => skill.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -62,11 +44,11 @@ public sealed class JobMatchCalculator
             requiredSkills.Count,
             matchedRequired.Length,
             missingOptional.Length);
-        var languageMismatches = FindConfirmedLanguageMismatches(requirements.RequiredLanguages, profile.SpokenLanguages);
+        var languageAssessment = AssessLanguages(requirements.RequiredLanguages, profile.SpokenLanguages);
         var hasExperienceShortfall = requirements.MinimumYearsProfessionalExperience is decimal minimumYears &&
             profile.YearsProfessionalExperience < minimumYears;
 
-        if (languageMismatches.Count > 0)
+        if (languageAssessment.ConfirmedMismatches.Count > 0 || languageAssessment.UnknownCapabilities.Count > 0)
         {
             rating = Math.Min(rating, 3);
         }
@@ -93,7 +75,7 @@ public sealed class JobMatchCalculator
                 matchedRequired.Select(skill => skill.DisplayName).ToArray(),
                 missingRequiredSkills,
                 missingOptionalSkills,
-                languageMismatches,
+                languageAssessment,
                 hasExperienceShortfall,
                 requirements.MinimumYearsProfessionalExperience,
                 profile.YearsProfessionalExperience));
@@ -130,7 +112,7 @@ public sealed class JobMatchCalculator
         foreach (var skill in skills)
         {
             var displayName = skill.Trim();
-            var key = NormalizeSkill(displayName);
+            var key = TechnicalSkillMatcher.Normalize(displayName);
             if (seen.Add(key))
             {
                 result.Add(new NormalizedSkill(key, displayName));
@@ -140,40 +122,7 @@ public sealed class JobMatchCalculator
         return result;
     }
 
-    private static string NormalizeSkill(string skill)
-    {
-        var whitespaceNormalized = CollapseWhitespace(skill.Trim());
-        return SkillAliases.TryGetValue(whitespaceNormalized, out var alias)
-            ? alias
-            : whitespaceNormalized;
-    }
-
-    private static string CollapseWhitespace(string value)
-    {
-        var result = new StringBuilder(value.Length);
-        var previousWasWhitespace = false;
-        foreach (var character in value)
-        {
-            if (char.IsWhiteSpace(character))
-            {
-                if (!previousWasWhitespace)
-                {
-                    result.Append(' ');
-                }
-
-                previousWasWhitespace = true;
-            }
-            else
-            {
-                result.Append(char.ToLowerInvariant(character));
-                previousWasWhitespace = false;
-            }
-        }
-
-        return result.ToString();
-    }
-
-    private static IReadOnlyList<string> FindConfirmedLanguageMismatches(
+    private static LanguageAssessment AssessLanguages(
         IEnumerable<RequiredLanguage> requirements,
         IEnumerable<SpokenLanguage> candidateLanguages)
     {
@@ -182,23 +131,35 @@ public sealed class JobMatchCalculator
             .GroupBy(language => language.Language.Trim(), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.First().Level, StringComparer.OrdinalIgnoreCase);
         var mismatches = new List<string>();
+        var unknownCapabilities = new List<string>();
 
         foreach (var requirement in requirements)
         {
-            if (string.IsNullOrWhiteSpace(requirement.MinimumLevel) ||
-                !knownLanguages.TryGetValue(requirement.Language.Trim(), out var candidateLevel) ||
-                !LanguageLevels.TryGetValue(requirement.MinimumLevel, out var requiredRank) ||
-                !LanguageLevels.TryGetValue(candidateLevel, out var candidateRank) ||
-                candidateRank >= requiredRank)
+            var requiredLanguage = requirement.Language.Trim();
+            if (!knownLanguages.TryGetValue(requiredLanguage, out var candidateLevel))
+            {
+                unknownCapabilities.Add($"{requiredLanguage} is not present in the candidate profile");
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(requirement.MinimumLevel))
             {
                 continue;
             }
 
-            mismatches.Add(
-                $"known {requirement.Language.Trim()} level {candidateLevel} is below required {requirement.MinimumLevel}");
+            if (!LanguageLevels.TryGetValue(requirement.MinimumLevel, out var requiredRank) ||
+                !LanguageLevels.TryGetValue(candidateLevel, out var candidateRank))
+            {
+                unknownCapabilities.Add($"{requiredLanguage} level could not be compared");
+            }
+            else if (candidateRank < requiredRank)
+            {
+                mismatches.Add(
+                    $"known {requiredLanguage} level {candidateLevel} is below required {requirement.MinimumLevel}");
+            }
         }
 
-        return mismatches;
+        return new LanguageAssessment(mismatches, unknownCapabilities);
     }
 
     private static string CreateExplanation(
@@ -206,7 +167,7 @@ public sealed class JobMatchCalculator
         IReadOnlyList<string> matchedRequired,
         IReadOnlyList<string> missingRequired,
         IReadOnlyList<string> missingOptional,
-        IReadOnlyList<string> languageMismatches,
+        LanguageAssessment languageAssessment,
         bool hasExperienceShortfall,
         decimal? minimumYears,
         decimal candidateYears)
@@ -233,9 +194,14 @@ public sealed class JobMatchCalculator
             parts.Add("Excellent technical match: all required and optional technical skills are present.");
         }
 
-        if (languageMismatches.Count > 0)
+        if (languageAssessment.ConfirmedMismatches.Count > 0)
         {
-            parts.Add($"Mandatory language requirement not met: {string.Join("; ", languageMismatches)}; rating is capped at 3.");
+            parts.Add($"Mandatory language requirement not met: {string.Join("; ", languageAssessment.ConfirmedMismatches)}; rating is capped at 3.");
+        }
+
+        if (languageAssessment.UnknownCapabilities.Count > 0)
+        {
+            parts.Add($"Mandatory language requirement not verified: {string.Join("; ", languageAssessment.UnknownCapabilities)}; rating is capped at 3.");
         }
 
         if (hasExperienceShortfall)
@@ -247,4 +213,8 @@ public sealed class JobMatchCalculator
     }
 
     private sealed record NormalizedSkill(string Key, string DisplayName);
+
+    private sealed record LanguageAssessment(
+        IReadOnlyList<string> ConfirmedMismatches,
+        IReadOnlyList<string> UnknownCapabilities);
 }

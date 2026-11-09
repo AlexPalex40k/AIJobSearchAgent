@@ -32,9 +32,7 @@ public static class JobMatchingPrompt
         JobVacancy vacancy,
         int maxDescriptionCharacters)
     {
-        var description = vacancy.Description.Length <= maxDescriptionCharacters
-            ? vacancy.Description
-            : vacancy.Description[..maxDescriptionCharacters];
+        var description = GetBoundedDescription(vacancy, maxDescriptionCharacters);
 
         var payload = new
         {
@@ -47,4 +45,9 @@ public static class JobMatchingPrompt
 
         return JsonSerializer.Serialize(payload, SerializerOptions);
     }
+
+    public static string GetBoundedDescription(JobVacancy vacancy, int maxDescriptionCharacters) =>
+        vacancy.Description.Length <= maxDescriptionCharacters
+            ? vacancy.Description
+            : vacancy.Description[..maxDescriptionCharacters];
 }

@@ -119,7 +119,7 @@ The endpoint, model, timeout, and maximum vacancy-description size are configura
 }
 ```
 
-The integration calls Ollama's `/api/chat` endpoint with streaming disabled, temperature 0, and a JSON Schema through the `format` field. Ollama receives only the untrusted vacancy title and bounded description. It extracts required and optional technologies, whether the requirements are clear, an optional overall experience minimum, and mandatory languages. The candidate profile is never included in the LLM request; rating and skill comparison happen deterministically in C#. No candidate or vacancy data is sent to a paid or cloud API.
+The integration calls Ollama's `/api/chat` endpoint with streaming disabled, temperature 0, and a JSON Schema through the `format` field. Ollama receives only the untrusted vacancy title and bounded description. It extracts required and optional technologies, whether the requirements are clear, an optional overall experience minimum, and mandatory languages. Before scoring, each extracted technology must also be mentioned in that bounded description; the title alone is not evidence. Unsupported extractions are excluded from required and optional skill comparison and named in the deterministic explanation. The candidate profile is never included in the LLM request; rating and skill comparison happen deterministically in C#. No candidate or vacancy data is sent to a paid or cloud API.
 
 Matching version `job-match-simple-v1` uses these rules:
 
@@ -129,7 +129,7 @@ Matching version `job-match-simple-v1` uses these rules:
 - no clear required technical stack is available: rating 2;
 - none of a clear required technical stack matches: rating 1.
 
-Explicit aliases cover common spellings of C#, EF Core, ASP.NET Core, and .NET. They do not broaden SQL into a specific database, Java into JavaScript, or a platform into all of its frameworks. A confirmed language-level shortfall caps the rating at 3. An explicit overall-experience shortfall caps it at 4 and is never interpreted as technology-specific experience. Missing language data is treated as unknown rather than a confirmed incompatibility.
+Explicit aliases cover common spellings of C#, EF Core, ASP.NET Core, and .NET for both candidate comparison and description verification. Description checks are token-aware: they do not broaden SQL into a specific database, Java into JavaScript, or a platform into all of its frameworks. A confirmed language-level shortfall caps the rating at 3. If a mandatory language is absent from the candidate profile, capability remains unknown rather than being called a mismatch, but the rating is also capped at 3 until that requirement is verified. An explicit overall-experience shortfall caps the rating at 4 and is never interpreted as technology-specific experience.
 
 ### 2. Create the private candidate profile
 
@@ -345,7 +345,7 @@ Additional limitations:
 - Imported data is only as complete and current as the upstream response.
 - Swagger is enabled only in the Development environment.
 - `qwen3:1.7b` is a small local model. Its requirement extraction can be inconsistent or overly literal and must be treated as decision support, not fact.
-- Structured output enforces response shape, not extraction correctness. Review the deterministic explanation and original vacancy before acting.
+- Structured output enforces response shape, while the local evidence check rejects extracted technologies that are not mentioned in the supplied description. It does not understand every semantic phrasing, so review the deterministic explanation and original vacancy before acting.
 - Results can change after model updates, model changes, profile edits, or prompt revisions; model name, profile hash, and prompt version are stored for traceability.
 - Long vacancy descriptions are truncated at the configured character limit before evaluation.
 - The prompt explicitly treats vacancy text as untrusted data, but prompt injection defenses are not an absolute security boundary.

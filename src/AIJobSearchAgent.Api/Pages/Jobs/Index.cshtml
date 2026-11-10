@@ -45,6 +45,56 @@
     </div>
 </form>
 
+@if (!string.IsNullOrWhiteSpace(Model.ImportSummaryMessage))
+{
+    <div class="alert alert-success" role="status">@Model.ImportSummaryMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.EvaluationSummaryMessage))
+{
+    <div class="alert alert-success" role="status">@Model.EvaluationSummaryMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.ImportErrorMessage))
+{
+    <div class="alert alert-error" role="alert">@Model.ImportErrorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(Model.EvaluationErrorMessage))
+{
+    <div class="alert alert-error" role="alert">@Model.EvaluationErrorMessage</div>
+}
+
+<section class="action-panel" aria-labelledby="import-heading">
+    <div class="action-panel-copy">
+        <p class="eyebrow">Find more vacancies</p>
+        <h2 id="import-heading">Import vacancies</h2>
+        <p>
+            Arbeitnow returns a limited number of recent pages. Keywords filter those pages; they do not search the provider's entire history.
+        </p>
+    </div>
+    <form method="post" asp-page-handler="Import" class="import-form">
+        <input type="hidden" name="keyword" value="@Model.Keyword" />
+        <input type="hidden" name="sort" value="@Model.Sort" />
+        <input type="hidden" name="page" value="@Model.PageNumber" />
+        <div class="field import-keywords">
+            <label asp-for="ImportForm.Keywords">Keywords</label>
+            <input asp-for="ImportForm.Keywords"
+                   placeholder=".NET, C#, ASP.NET Core"
+                   autocomplete="off" />
+            <span class="field-hint">Separate up to @IndexModel.MaximumImportKeywords terms with commas.</span>
+            <span class="validation-message" asp-validation-for="ImportForm.Keywords"></span>
+        </div>
+        <div class="field import-pages">
+            <label asp-for="ImportForm.MaximumPages">Maximum pages</label>
+            <input asp-for="ImportForm.MaximumPages"
+                   type="number"
+                   min="1"
+                   max="@Model.MaximumImportPages" />
+            <span class="field-hint">Configured limit: @Model.MaximumImportPages pages.</span>
+            <span class="validation-message" asp-validation-for="ImportForm.MaximumPages"></span>
+        </div>
+        <button type="submit" class="button button-primary">Import jobs</button>
+    </form>
+</section>
+
 <p class="notice" role="note">
     AI-assisted ratings are decision support and may be incomplete or inaccurate. Review the original vacancy before applying.
 </p>
@@ -58,104 +108,126 @@
 }
 else
 {
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th scope="col">Job</th>
-                    <th scope="col">Location</th>
-                    <th scope="col">Remote</th>
-                    <th scope="col">Rating</th>
-                    <th scope="col">Evaluation</th>
-                    <th scope="col">Links</th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach (var job in Model.Jobs.Items)
-            {
-                var statusClass = job.EvaluationStatus switch
-                {
-                    EvaluationStatus.Succeeded => "status-success",
-                    EvaluationStatus.TimedOut => "status-warning",
-                    EvaluationStatus.Failed => "status-error",
-                    _ => "status-neutral"
-                };
-                var statusText = job.EvaluationStatus switch
-                {
-                    EvaluationStatus.Succeeded => "Succeeded",
-                    EvaluationStatus.TimedOut => "Timed out",
-                    EvaluationStatus.Failed => "Failed",
-                    _ => "Not evaluated"
-                };
+    <form method="post" asp-page-handler="EvaluateSelected" class="evaluation-form">
+        <input type="hidden" name="keyword" value="@Model.Keyword" />
+        <input type="hidden" name="sort" value="@Model.Sort" />
+        <input type="hidden" name="page" value="@Model.PageNumber" />
+        <div class="batch-toolbar">
+            <div>
+                <strong>Evaluate selected vacancies</strong>
+                <p>Select up to @EvaluateJobsBatchUseCase.MaximumBatchSize jobs on this page. Evaluation runs sequentially and may take several minutes, so keep this page open.</p>
+                <span class="validation-message" asp-validation-for="SelectedJobIds"></span>
+            </div>
+            <button type="submit" class="button button-primary">Evaluate selected</button>
+        </div>
 
-                <tr>
-                    <td class="job-cell">
-                        <strong>@job.Title</strong>
-                        <span>@job.Company</span>
-                    </td>
-                    <td>@job.Location</td>
-                    <td>
-                        <span class="remote-label @(job.IsRemote ? "remote-yes" : "remote-no")">
-                            @(job.IsRemote ? "Remote" : "On-site / hybrid")
-                        </span>
-                    </td>
-                    <td>
-                        @if (job.Rating.HasValue)
-                        {
-                            <span class="rating rating-@job.Rating" aria-label="Rating @job.Rating out of 5">
-                                @job.Rating<span>/5</span>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col" class="select-column"><span class="visually-hidden">Select</span></th>
+                        <th scope="col">Job</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Remote</th>
+                        <th scope="col">Rating</th>
+                        <th scope="col">Evaluation</th>
+                        <th scope="col">Links</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var job in Model.Jobs.Items)
+                {
+                    var statusClass = job.EvaluationStatus switch
+                    {
+                        EvaluationStatus.Succeeded => "status-success",
+                        EvaluationStatus.TimedOut => "status-warning",
+                        EvaluationStatus.Failed => "status-error",
+                        _ => "status-neutral"
+                    };
+                    var statusText = job.EvaluationStatus switch
+                    {
+                        EvaluationStatus.Succeeded => "Succeeded",
+                        EvaluationStatus.TimedOut => "Timed out",
+                        EvaluationStatus.Failed => "Failed",
+                        _ => "Not evaluated"
+                    };
+
+                    <tr>
+                        <td class="select-column">
+                            <input type="checkbox"
+                                   name="SelectedJobIds"
+                                   value="@job.VacancyId"
+                                   checked="@Model.SelectedJobIds.Contains(job.VacancyId)"
+                                   aria-label="Select @job.Title at @job.Company" />
+                        </td>
+                        <td class="job-cell">
+                            <strong>@job.Title</strong>
+                            <span>@job.Company</span>
+                        </td>
+                        <td>@job.Location</td>
+                        <td>
+                            <span class="remote-label @(job.IsRemote ? "remote-yes" : "remote-no")">
+                                @(job.IsRemote ? "Remote" : "On-site / hybrid")
                             </span>
-                        }
-                        else
-                        {
-                            <span class="muted">—</span>
-                        }
-                    </td>
-                    <td>
-                        <span class="status @statusClass">@statusText</span>
-                    </td>
-                    <td class="links-cell">
-                        @if (IndexModel.IsSafeExternalUrl(job.Url))
-                        {
-                            <a href="@job.Url" target="_blank" rel="noopener noreferrer nofollow">Original job</a>
-                        }
-                        <details>
-                            <summary>Evaluation details</summary>
-                            <div class="details-card">
-                                @if (job.EvaluationStatus is null)
-                                {
-                                    <p>This vacancy has no evaluation for the current profile and matching configuration.</p>
-                                }
-                                else
-                                {
-                                    <dl>
-                                        <div>
-                                            <dt>Rating</dt>
-                                            <dd>@(job.Rating.HasValue ? $"{job.Rating}/5" : "Not available")</dd>
-                                        </div>
-                                        <div>
-                                            <dt>Status</dt>
-                                            <dd>@statusText</dd>
-                                        </div>
-                                        <div>
-                                            <dt>Evaluated</dt>
-                                            <dd>@(job.EvaluatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Not available")</dd>
-                                        </div>
-                                    </dl>
-                                    <p>@(string.IsNullOrWhiteSpace(job.Explanation) ? "No explanation is available." : job.Explanation)</p>
-                                }
-                                @if (IndexModel.IsSafeExternalUrl(job.Url))
-                                {
-                                    <a href="@job.Url" target="_blank" rel="noopener noreferrer nofollow">Open original vacancy</a>
-                                }
-                            </div>
-                        </details>
-                    </td>
-                </tr>
-            }
-            </tbody>
-        </table>
-    </div>
+                        </td>
+                        <td>
+                            @if (job.Rating.HasValue)
+                            {
+                                <span class="rating rating-@job.Rating" aria-label="Rating @job.Rating out of 5">
+                                    @job.Rating<span>/5</span>
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="muted">—</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="status @statusClass">@statusText</span>
+                        </td>
+                        <td class="links-cell">
+                            @if (IndexModel.IsSafeExternalUrl(job.Url))
+                            {
+                                <a href="@job.Url" target="_blank" rel="noopener noreferrer nofollow">Original job</a>
+                            }
+                            <details>
+                                <summary>Evaluation details</summary>
+                                <div class="details-card">
+                                    @if (job.EvaluationStatus is null)
+                                    {
+                                        <p>This vacancy has no evaluation for the current profile and matching configuration.</p>
+                                    }
+                                    else
+                                    {
+                                        <dl>
+                                            <div>
+                                                <dt>Rating</dt>
+                                                <dd>@(job.Rating.HasValue ? $"{job.Rating}/5" : "Not available")</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Status</dt>
+                                                <dd>@statusText</dd>
+                                            </div>
+                                            <div>
+                                                <dt>Evaluated</dt>
+                                                <dd>@(job.EvaluatedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "Not available")</dd>
+                                            </div>
+                                        </dl>
+                                        <p>@(string.IsNullOrWhiteSpace(job.Explanation) ? "No explanation is available." : job.Explanation)</p>
+                                    }
+                                    @if (IndexModel.IsSafeExternalUrl(job.Url))
+                                    {
+                                        <a href="@job.Url" target="_blank" rel="noopener noreferrer nofollow">Open original vacancy</a>
+                                    }
+                                </div>
+                            </details>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </form>
 
     @if (Model.Jobs.TotalPages > 1)
     {

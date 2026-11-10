@@ -5,10 +5,13 @@ using AIJobSearchAgent.Application.Services;
 using AIJobSearchAgent.Application.UseCases;
 using AIJobSearchAgent.Domain.Entities;
 using AIJobSearchAgent.Domain.Profiles;
+using AIJobSearchAgent.Infrastructure.Providers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace AIJobSearchAgent.Tests;
 
@@ -89,11 +92,35 @@ public sealed class JobsPageTests
 
     private static IndexModel CreatePageModel(RecordingRankedJobVacancyQuery rankedQuery)
     {
+        var vacancyRepository = new NoOpVacancyRepository();
+        var evaluationRepository = new NoOpEvaluationRepository();
+        var profileProvider = new StubProfileProvider();
+        var matchingService = new MetadataOnlyMatchingService();
         var useCase = new GetRankedJobsUseCase(
             rankedQuery,
-            new StubProfileProvider(),
-            new MetadataOnlyMatchingService());
-        return new IndexModel(useCase)
+            profileProvider,
+            matchingService);
+        var evaluateJob = new EvaluateJobUseCase(
+            vacancyRepository,
+            evaluationRepository,
+            profileProvider,
+            matchingService,
+            NullLogger<EvaluateJobUseCase>.Instance);
+        return new IndexModel(
+            useCase,
+            new ImportJobsUseCase(
+                new NoOpJobProvider(),
+                vacancyRepository,
+                NullLogger<ImportJobsUseCase>.Instance),
+            new EvaluateJobsBatchUseCase(
+                vacancyRepository,
+                evaluationRepository,
+                profileProvider,
+                matchingService,
+                evaluateJob,
+                NullLogger<EvaluateJobsBatchUseCase>.Instance),
+            Options.Create(new ArbeitnowOptions { MaxPages = 3 }),
+            NullLogger<IndexModel>.Instance)
         {
             PageContext = new PageContext
             {
@@ -166,5 +193,45 @@ public sealed class JobsPageTests
             CandidateProfile profile,
             CancellationToken cancellationToken) =>
             throw new InvalidOperationException("The jobs page must not trigger evaluation.");
+    }
+
+    private sealed class NoOpJobProvider : IJobProvider
+    {
+        public string SourceName => "Test";
+
+        public Task<IReadOnlyList<JobVacancy>> SearchAsync(
+            JobSearchCriteria criteria,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<JobVacancy>>([]);
+    }
+
+    private sealed class NoOpVacancyRepository : IJobVacancyRepository
+    {
+        public Task<SaveJobsResult> AddNewAsync(
+            IReadOnlyCollection<JobVacancy> vacancies,
+            CancellationToken cancellationToken) => Task.FromResult(new SaveJobsResult(0, 0));
+
+        public Task<PagedResult<JobVacancy>> GetAsync(
+            JobQuery query,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new PagedResult<JobVacancy>([], 0, query.Page, query.PageSize));
+
+        public Task<JobVacancy?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+            Task.FromResult<JobVacancy?>(null);
+    }
+
+    private sealed class NoOpEvaluationRepository : IJobMatchEvaluationRepository
+    {
+        public Task AddAsync(JobMatchEvaluation evaluation, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<JobMatchEvaluation>> GetByVacancyIdAsync(
+            Guid jobVacancyId,
+            CancellationToken cancellationToken) => Task.FromResult<IReadOnlyList<JobMatchEvaluation>>([]);
+
+        public Task<JobMatchEvaluation?> GetSuccessfulAsync(
+            Guid jobVacancyId,
+            string profileHash,
+            string modelName,
+            string promptVersion,
+            CancellationToken cancellationToken) => Task.FromResult<JobMatchEvaluation?>(null);
     }
 }

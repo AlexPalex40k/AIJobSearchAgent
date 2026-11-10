@@ -1,6 +1,6 @@
 # AI Job Search Agent
 
-AI Job Search Agent is an educational, portfolio-quality .NET application. Phase 1 collects public job vacancies from Arbeitnow and stores them in SQLite. Phase 2 asks a local Ollama model to extract vacancy requirements, compares them with a local candidate profile using deterministic C# rules, and preserves the evaluation history. Paid APIs, CV parsing, notifications, scheduling, authentication, a frontend, RAG, agent orchestration, and cloud deployment remain out of scope.
+AI Job Search Agent is an educational, portfolio-quality .NET application. Phase 1 collects public job vacancies from Arbeitnow and stores them in SQLite. Phase 2 asks a local Ollama model to extract vacancy requirements, compares them with a local candidate profile using deterministic C# rules, and preserves the evaluation history. A small Razor Pages UI supports the local workflow. Paid APIs, CV parsing, notifications, scheduling, authentication, a separate frontend application, RAG, agent orchestration, and cloud deployment remain out of scope.
 
 ## Architecture
 
@@ -86,7 +86,11 @@ The Development launch profile listens at `http://localhost:5091`. Open the loca
 http://localhost:5091/jobs
 ```
 
-The page displays imported vacancies and their current evaluation state without starting new evaluations. Use the keyword field to search vacancy titles and descriptions, choose rating descending, rating ascending, or newest-first sorting, and move between pages with the Previous and Next links. Filter and sort values are retained while paging. Evaluation details expand in place, and original vacancy links open in a new browser tab.
+The page displays imported vacancies and their current evaluation state. Use the keyword field to search vacancy titles and descriptions, choose rating descending, rating ascending, or newest-first sorting, and move between pages with the Previous and Next links. Filter and sort values are retained while paging. Evaluation details expand in place, and original vacancy links open in a new browser tab.
+
+To import vacancies in the browser, enter one or more comma-separated search terms in **Import vacancies**, choose how many recent Arbeitnow API pages to fetch, and select **Import jobs**. Empty terms are ignored; at least one keyword is required. The page accepts at most 20 keywords of 100 characters each and enforces the Arbeitnow page ceiling from configuration. Arbeitnow exposes only a limited set of recent API pages, so this action filters those fetched pages and does not search the provider's complete history. Importing does not automatically evaluate the new vacancies.
+
+To evaluate vacancies, select up to 20 rows on the current page and choose **Evaluate selected**. This is a synchronous local Ollama operation, so it can take several minutes and the browser page should remain open. The refreshed list shows the resulting current ratings and statuses while preserving the active search, sort, and page. A successful evaluation is skipped when one already exists for the same candidate-profile hash, configured model, and prompt version. Failed or timed-out evaluations are retried, and an individual failure is counted in the summary without stopping the remaining selected vacancies.
 
 Swagger UI remains available at:
 

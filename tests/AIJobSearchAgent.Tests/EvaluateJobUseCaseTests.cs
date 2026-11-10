@@ -174,6 +174,10 @@ public sealed class EvaluateJobUseCaseTests
     {
         public int CallCount { get; private set; }
 
+        public string ModelName => "qwen3:1.7b";
+
+        public string PromptVersion => "job-match-v1";
+
         public Task<JobMatchResult> EvaluateAsync(
             JobVacancy vacancy,
             CandidateProfile profile,
@@ -214,6 +218,13 @@ public sealed class EvaluateJobUseCaseTests
 
         public Task<IReadOnlyList<JobMatchEvaluation>> GetByVacancyIdAsync(
             Guid jobVacancyId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<JobMatchEvaluation?> GetSuccessfulAsync(
+            Guid jobVacancyId,
+            string profileHash,
+            string modelName,
+            string promptVersion,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 

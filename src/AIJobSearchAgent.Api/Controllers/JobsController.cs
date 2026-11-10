@@ -13,6 +13,7 @@ public sealed class JobsController(
     ImportJobsUseCase importJobs,
     GetJobsUseCase getJobs,
     EvaluateJobUseCase evaluateJob,
+    EvaluateJobsBatchUseCase evaluateJobsBatch,
     GetJobEvaluationsUseCase getEvaluations) : ControllerBase
 {
     [HttpPost("import")]
@@ -80,6 +81,24 @@ public sealed class JobsController(
     {
         var evaluation = await evaluateJob.ExecuteAsync(id, cancellationToken);
         return evaluation is null ? NotFound() : Ok(evaluation);
+    }
+
+    [HttpPost("evaluate-batch")]
+    [ProducesResponseType<BatchJobEvaluationSummary>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<BatchJobEvaluationSummary>> EvaluateBatch(
+        [FromBody] EvaluateJobsBatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.JobIds is not { Count: >= 1 and <= EvaluateJobsBatchUseCase.MaximumBatchSize } jobIds)
+        {
+            ModelState.AddModelError(
+                nameof(request.JobIds),
+                $"Between 1 and {EvaluateJobsBatchUseCase.MaximumBatchSize} vacancy IDs are required.");
+            return ValidationProblem(ModelState);
+        }
+
+        return Ok(await evaluateJobsBatch.ExecuteAsync(jobIds, cancellationToken));
     }
 
     [HttpGet("{id:guid}/evaluations")]

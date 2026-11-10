@@ -28,12 +28,16 @@ public sealed class OllamaJobMatchingService(
     private static readonly HashSet<string> SupportedLanguageLevels =
         new(["A1", "A2", "B1", "B2", "C1", "C2", "native"], StringComparer.OrdinalIgnoreCase);
 
+    public string ModelName => options.Value.Model;
+
+    public string PromptVersion => JobMatchingPrompt.Version;
+
     public async Task<JobMatchResult> EvaluateAsync(
         JobVacancy vacancy,
         CandidateProfile profile,
         CancellationToken cancellationToken)
     {
-        var configuredModel = options.Value.Model;
+        var configuredModel = ModelName;
         var suppliedDescription = JobMatchingPrompt.GetBoundedDescription(
             vacancy,
             options.Value.MaxDescriptionCharacters);

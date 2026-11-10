@@ -241,13 +241,62 @@ Example successful response:
 }
 ```
 
+Evaluate 5–10 stored vacancies sequentially with one request. This example selects the first eight vacancies from local storage:
+
+```powershell
+$jobs = Invoke-RestMethod 'http://localhost:5091/api/jobs?page=1&pageSize=8'
+$jobIds = @($jobs.items | Select-Object -First 8 | ForEach-Object { $_.id })
+$body = @{ jobIds = $jobIds } | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri 'http://localhost:5091/api/jobs/evaluate-batch' `
+  -ContentType 'application/json' `
+  -Body $body
+```
+
+The batch accepts 1–20 IDs. Duplicate IDs are safe: only the first occurrence can trigger evaluation and later occurrences are reported as skipped. An individual missing vacancy or Ollama failure is reported in the summary without stopping later vacancies.
+
+Example batch response:
+
+```json
+{
+  "totalRequestedVacancies": 3,
+  "successfullyEvaluatedCount": 1,
+  "skippedCount": 1,
+  "failedCount": 1,
+  "results": [
+    {
+      "vacancyId": "00000000-0000-0000-0000-000000000001",
+      "status": "succeeded",
+      "rating": 4,
+      "explanation": "The candidate matches the required backend skills."
+    },
+    {
+      "vacancyId": "00000000-0000-0000-0000-000000000002",
+      "status": "skipped",
+      "rating": 5,
+      "explanation": "Skipped because a successful evaluation already exists for this profile, model, and prompt version."
+    },
+    {
+      "vacancyId": "00000000-0000-0000-0000-000000000003",
+      "status": "failed",
+      "rating": null,
+      "explanation": "Evaluation failed."
+    }
+  ]
+}
+```
+
+By default, batch evaluation skips a vacancy only when its history contains a successful result with the exact current candidate-profile hash, configured model name, and prompt version. A changed profile, model, or matching version triggers a new evaluation. Failed and timed-out attempts are never reused. The single-vacancy endpoint always starts a new evaluation, which allows an explicit manual retry while preserving all prior history.
+
 Retrieve all evaluation attempts for that vacancy, newest first:
 
 ```powershell
 Invoke-RestMethod "http://localhost:5091/api/jobs/$jobId/evaluations"
 ```
 
-Failed and timed-out LLM attempts are recorded with a `null` rating and a non-success status. The API returns an error response instead of fabricating a successful rating. Evaluations are only started by the single-vacancy POST endpoint; imports and list requests never trigger matching automatically.
+Failed and timed-out LLM attempts are recorded with a `null` rating and a non-success status. The single-vacancy API returns an error response instead of fabricating a successful rating. Imports and list requests never trigger matching automatically.
 
 ## Local LLM benchmarking
 

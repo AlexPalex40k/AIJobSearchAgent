@@ -6,6 +6,10 @@ namespace AIJobSearchAgent.Application.Abstractions;
 
 public interface IJobMatchingService
 {
+    string ModelName { get; }
+
+    string PromptVersion { get; }
+
     Task<JobMatchResult> EvaluateAsync(
         JobVacancy vacancy,
         CandidateProfile profile,

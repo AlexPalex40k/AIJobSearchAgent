@@ -20,4 +20,21 @@ public sealed class JobMatchEvaluationRepository(AppDbContext dbContext) : IJobM
             .OrderByDescending(evaluation => evaluation.EvaluatedAt)
             .ThenByDescending(evaluation => evaluation.Id)
             .ToListAsync(cancellationToken);
+
+    public Task<JobMatchEvaluation?> GetSuccessfulAsync(
+        Guid jobVacancyId,
+        string profileHash,
+        string modelName,
+        string promptVersion,
+        CancellationToken cancellationToken) => dbContext.JobMatchEvaluations
+            .AsNoTracking()
+            .Where(evaluation =>
+                evaluation.JobVacancyId == jobVacancyId &&
+                evaluation.ProfileHash == profileHash &&
+                evaluation.ModelName == modelName &&
+                evaluation.PromptVersion == promptVersion &&
+                evaluation.EvaluationStatus == EvaluationStatus.Succeeded)
+            .OrderByDescending(evaluation => evaluation.EvaluatedAt)
+            .ThenByDescending(evaluation => evaluation.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 }

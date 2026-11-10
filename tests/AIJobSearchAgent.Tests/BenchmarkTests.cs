@@ -575,6 +575,10 @@ public sealed class BenchmarkTests
         Func<JobVacancy, CandidateProfile, CancellationToken, Task<JobMatchResult>> evaluate)
         : IJobMatchingService
     {
+        public string ModelName => "test-model";
+
+        public string PromptVersion => "test-prompt";
+
         public Task<JobMatchResult> EvaluateAsync(
             JobVacancy vacancy,
             CandidateProfile profile,

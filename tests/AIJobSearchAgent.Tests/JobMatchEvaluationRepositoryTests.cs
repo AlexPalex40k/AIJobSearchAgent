@@ -45,6 +45,22 @@ public sealed class JobMatchEvaluationRepositoryTests
         Assert.Equal(4, history[0].Rating);
         Assert.Equal(["C#"], history[0].MatchedSkills);
         Assert.Equal(EvaluationStatus.Succeeded, history[0].EvaluationStatus);
+
+        var matchingEvaluation = await repository.GetSuccessfulAsync(
+            vacancy.Id,
+            newer.ProfileHash,
+            newer.ModelName,
+            newer.PromptVersion,
+            CancellationToken.None);
+        var differentProfileEvaluation = await repository.GetSuccessfulAsync(
+            vacancy.Id,
+            new string('b', 64),
+            newer.ModelName,
+            newer.PromptVersion,
+            CancellationToken.None);
+
+        Assert.Equal(newer.Id, matchingEvaluation?.Id);
+        Assert.Null(differentProfileEvaluation);
     }
 
     [Fact]

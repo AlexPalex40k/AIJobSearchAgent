@@ -22,6 +22,15 @@ public sealed class EvaluateJobUseCase(
         }
 
         var profileSnapshot = await profileProvider.LoadAsync(cancellationToken);
+        return await ExecuteAsync(vacancy, profileSnapshot, cancellationToken);
+    }
+
+    internal async Task<JobMatchEvaluationDto> ExecuteAsync(
+        JobVacancy vacancy,
+        CandidateProfileSnapshot profileSnapshot,
+        CancellationToken cancellationToken)
+    {
+        var vacancyId = vacancy.Id;
         logger.LogInformation("Starting evaluation for vacancy {VacancyId}", vacancyId);
 
         try

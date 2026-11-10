@@ -21,6 +21,7 @@ var databasePath = Path.Combine(dataDirectory, "jobs.db");
 
 builder.Services.AddControllers().AddJsonOptions(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
+builder.Services.AddRazorPages();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddApplication();
@@ -28,6 +29,7 @@ builder.Services.AddInfrastructure(builder.Configuration, databasePath, solution
 
 var app = builder.Build();
 
+app.UseStaticFiles();
 app.UseMiddleware<ApiExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -37,6 +39,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapRazorPages();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {

@@ -30,6 +30,9 @@ public sealed class JobMatchCalculator
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var requiredSkills = NormalizeRequirements(requirements.RequiredSkills);
         var requiredKeys = requiredSkills.Select(skill => skill.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var coreRequiredSkills = NormalizeRequirements(requirements.CoreRequiredSkills)
+            .Where(skill => requiredKeys.Contains(skill.Key))
+            .ToArray();
         var optionalSkills = NormalizeRequirements(requirements.OptionalSkills)
             .Where(skill => !requiredKeys.Contains(skill.Key))
             .ToArray();
@@ -38,12 +41,17 @@ public sealed class JobMatchCalculator
         var missingRequired = requiredSkills.Where(skill => !candidateSkills.Contains(skill.Key)).ToArray();
         var matchedOptional = optionalSkills.Where(skill => candidateSkills.Contains(skill.Key)).ToArray();
         var missingOptional = optionalSkills.Where(skill => !candidateSkills.Contains(skill.Key)).ToArray();
+        var hasCoreStackMismatch = requirements.HasClearRequirements &&
+            coreRequiredSkills.Length > 0 &&
+            coreRequiredSkills.All(skill => !candidateSkills.Contains(skill.Key));
 
-        var rating = CalculateTechnicalRating(
-            requirements.HasClearRequirements,
-            requiredSkills.Count,
-            matchedRequired.Length,
-            missingOptional.Length);
+        var rating = hasCoreStackMismatch
+            ? 1
+            : CalculateTechnicalRating(
+                requirements.HasClearRequirements,
+                requiredSkills.Count,
+                matchedRequired.Length,
+                missingOptional.Length);
         var languageAssessment = AssessLanguages(requirements.RequiredLanguages, profile.SpokenLanguages);
         var hasExperienceShortfall = requirements.MinimumYearsProfessionalExperience is decimal minimumYears &&
             profile.YearsProfessionalExperience < minimumYears;
@@ -72,6 +80,8 @@ public sealed class JobMatchCalculator
             missingOptionalSkills,
             CreateExplanation(
                 requirements.HasClearRequirements,
+                hasCoreStackMismatch,
+                coreRequiredSkills.Select(skill => skill.DisplayName).ToArray(),
                 matchedRequired.Select(skill => skill.DisplayName).ToArray(),
                 missingRequiredSkills,
                 missingOptionalSkills,
@@ -164,6 +174,8 @@ public sealed class JobMatchCalculator
 
     private static string CreateExplanation(
         bool hasClearRequirements,
+        bool hasCoreStackMismatch,
+        IReadOnlyList<string> coreRequiredSkills,
         IReadOnlyList<string> matchedRequired,
         IReadOnlyList<string> missingRequired,
         IReadOnlyList<string> missingOptional,
@@ -176,6 +188,10 @@ public sealed class JobMatchCalculator
         if (!hasClearRequirements || matchedRequired.Count + missingRequired.Count == 0)
         {
             parts.Add("Insufficient information: the vacancy does not provide clear required technical skills for reliable matching.");
+        }
+        else if (hasCoreStackMismatch)
+        {
+            parts.Add($"Not suitable: none of the role-defining core technologies are present. Missing core required skills: {string.Join(", ", coreRequiredSkills)}.");
         }
         else if (missingRequired.Count == matchedRequired.Count + missingRequired.Count)
         {

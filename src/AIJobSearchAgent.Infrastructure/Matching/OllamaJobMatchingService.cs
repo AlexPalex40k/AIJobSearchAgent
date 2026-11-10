@@ -92,7 +92,10 @@ public sealed class OllamaJobMatchingService(
                 output.MinimumYearsProfessionalExperience,
                 output.RequiredLanguages!
                     .Select(language => new RequiredLanguage(language!.Language!.Trim(), language.MinimumLevel?.Trim()))
-                    .ToArray());
+                    .ToArray())
+            {
+                CoreRequiredSkills = NormalizeSkills(output.CoreRequiredSkills!)
+            };
             requirements = requirements with
             {
                 RequiredLanguages = LanguageRequirementVerifier.Verify(
@@ -145,10 +148,12 @@ public sealed class OllamaJobMatchingService(
     {
         if (output is null ||
             output.RequiredSkills is null ||
+            output.CoreRequiredSkills is null ||
             output.OptionalSkills is null ||
             output.RequiredLanguages is null ||
             output.MinimumYearsProfessionalExperience is < 0 or > 100 ||
             HasInvalidSkillList(output.RequiredSkills) ||
+            HasInvalidSkillList(output.CoreRequiredSkills) ||
             HasInvalidSkillList(output.OptionalSkills) ||
             output.RequiredLanguages.Count > 20 ||
             output.RequiredLanguages.Any(IsInvalidLanguage))
@@ -190,6 +195,7 @@ public sealed class OllamaJobMatchingService(
           "additionalProperties": false,
           "properties": {
             "requiredSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+            "coreRequiredSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
             "optionalSkills": { "type": "array", "maxItems": 100, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
             "hasClearRequirements": { "type": "boolean" },
             "minimumYearsProfessionalExperience": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
@@ -209,6 +215,7 @@ public sealed class OllamaJobMatchingService(
           },
           "required": [
             "requiredSkills",
+            "coreRequiredSkills",
             "optionalSkills",
             "hasClearRequirements",
             "minimumYearsProfessionalExperience",
@@ -257,6 +264,10 @@ public sealed class OllamaJobMatchingService(
         [JsonRequired]
         [JsonPropertyName("requiredSkills")]
         public List<string?>? RequiredSkills { get; init; }
+
+        [JsonRequired]
+        [JsonPropertyName("coreRequiredSkills")]
+        public List<string?>? CoreRequiredSkills { get; init; }
 
         [JsonRequired]
         [JsonPropertyName("optionalSkills")]

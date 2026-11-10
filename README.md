@@ -119,19 +119,22 @@ The endpoint, model, timeout, and maximum vacancy-description size are configura
 }
 ```
 
-The integration calls Ollama's `/api/chat` endpoint with streaming disabled, temperature 0, and a JSON Schema through the `format` field. Ollama receives only the untrusted vacancy title and bounded description. It extracts required and optional technologies, whether the requirements are clear, an optional overall experience minimum, and mandatory languages. Before scoring, each extracted technology must also be mentioned in that bounded description; the title alone is not evidence. Unsupported extractions are excluded from required and optional skill comparison and named in the deterministic explanation. The candidate profile is never included in the LLM request; rating and skill comparison happen deterministically in C#. No candidate or vacancy data is sent to a paid or cloud API.
+The integration calls Ollama's `/api/chat` endpoint with streaming disabled, temperature 0, and a JSON Schema through the `format` field. Ollama receives only the untrusted vacancy title and bounded description. It extracts required and optional technologies, a small subset of role-defining core required technologies, whether the requirements are clear, an optional overall experience minimum, and mandatory languages. Before scoring, each extracted technology must also be mentioned in that bounded description; the title alone is not evidence. Unsupported extractions are excluded from required and optional skill comparison and named in the deterministic explanation. The candidate profile is never included in the LLM request; rating and skill comparison happen deterministically in C#. No candidate or vacancy data is sent to a paid or cloud API.
 
-Matching version `job-match-simple-v3` uses these rules:
+Matching version `job-match-simple-v4` uses these rules:
 
 - all required and optional technical skills match: rating 5;
 - all required skills match but an optional skill is missing: rating 4;
 - some, but not all, required skills match: rating 3;
 - no clear required technical stack is available: rating 2;
+- none of the verified role-defining core required skills match: rating 1, even if generic supporting technologies match;
 - none of a clear required technical stack matches: rating 1.
 
 Explicit aliases cover common spellings of C#, EF Core, ASP.NET Core, and .NET for both candidate comparison and description verification. Description checks are token-aware: they do not broaden SQL into a specific database, Java into JavaScript, or a platform into all of its frameworks. A confirmed language-level shortfall caps the rating at 3. If a mandatory language is absent from the candidate profile, capability remains unknown rather than being called a mismatch, but the rating is also capped at 3 until that requirement is verified. An explicit overall-experience shortfall caps the rating at 4 and is never interpreted as technology-specific experience.
 
 Technical classification is corrected only when the bounded description gives explicit evidence. Markers such as required, mandatory, or essential move an extracted technology to required; optional, preferred, useful, bonus, or nice-to-have move it to optional. Technologies explicitly described as irrelevant, not required, not used, or outside the role are discarded. Clear non-technology outputs such as year-count experience phrases and generic practices such as code review are also discarded. Without an explicit marker, the verifier preserves Ollama's classification rather than treating every mentioned technology as mandatory. Core-responsibility implications therefore remain model judgments, and the narrow non-technology exclusions are not a comprehensive professional-practice dictionary.
+
+`coreRequiredSkills` identifies only technologies that define the role's main specialization or essential technical purpose, such as Python and FastAPI for a Python backend role. It is deterministically reduced to a normalized, duplicate-free subset of the verified required skills; an invented core skill or one supported only by the title is discarded. SQL and Docker are not considered role-defining by default. When no reliable core subset remains, the existing required/optional rating rules apply unchanged.
 
 Mandatory languages are also checked against the bounded vacancy description before scoring. A language is retained only when the text connects it to an explicit requirement; background references such as an English-speaking team or English documentation are not enough. CEFR levels are retained only when the exact level is stated with the requirement. `native` is retained only when native proficiency is explicitly required. If the language is mandatory but Ollama returns an unsupported level—for example `native` for “professional English”—the language remains required with a `null` minimum level.
 
@@ -227,7 +230,7 @@ Example successful response:
   "jobVacancyId": "00000000-0000-0000-0000-000000000000",
   "profileHash": "4b7c...64-lowercase-hex-characters...",
   "modelName": "qwen3:1.7b",
-  "promptVersion": "job-match-simple-v3",
+  "promptVersion": "job-match-simple-v4",
   "rating": 4,
   "matchedSkills": ["C#", "ASP.NET Core"],
   "missingRequiredSkills": [],
@@ -256,7 +259,7 @@ The committed inputs are intentionally synthetic:
 - `benchmarks/dataset.simple.v3.json` contains the same 18 vacancy identities and descriptions with independently reviewed, approved reference labels for `job-match-simple-v3`.
 - `benchmarks/candidate-profile.synthetic.json` is a benchmark-only profile and does not read or contain the private `candidate-profile.json`.
 
-The 18 approved ratings in `dataset.v1.json` remain historical labels and are not authoritative for `job-match-simple-v3`. The independently reviewed v3 dataset declares `"datasetVersion": "2.0"` and `"matchingVersion": "job-match-simple-v3"`; all 18 cases have approved ratings and reviewer metadata. The runner can therefore calculate accuracy and MAE from successful evaluations while continuing to report failures, distributions, and latency. Model predictions must not be copied into the reference labels.
+The 18 approved ratings in `dataset.v1.json` remain historical labels and are not authoritative for simplified matching. The independently reviewed v3 dataset declares `"datasetVersion": "2.0"` and `"matchingVersion": "job-match-simple-v3"`; all 18 cases have approved ratings and reviewer metadata. It remains unchanged for v3 reproducibility. Because the current prompt is `job-match-simple-v4`, runs against this v3 dataset are marked reference-label incompatible and do not report accuracy or MAE; they still report predictions, failures, distributions, and latency. A future v4 reference dataset requires independent review rather than copying model predictions.
 
 Synthetic cases deliberately omit `vacancyUrl`: their companies and vacancies do not exist, so the dataset must not invent links that appear to identify external listings. A future benchmark case based on a real vacancy may set `vacancyUrl` to its actual absolute HTTP or HTTPS source URL. Dataset validation rejects relative, malformed, and non-HTTP(S) URLs. Because external listings can change or disappear, the dataset remains a reviewed snapshot rather than fetching live vacancy content during a run.
 
@@ -278,7 +281,7 @@ Future label changes must be reviewed independently of model predictions. Update
 
 ### Run an experiment
 
-Start Ollama, pull the model, and run the approved simplified dataset:
+Start Ollama, pull the model, and run the preserved v3 dataset as a v4 regression experiment. The report will mark its approved labels incompatible with the current matching version:
 
 ```powershell
 ollama pull qwen3:4b
@@ -336,7 +339,7 @@ Tests use mocked HTTP responses and disposable in-memory or temporary-file SQLit
 dotnet test AIJobSearchAgent.sln
 ```
 
-Coverage includes Phase 1 collection behavior plus candidate profile validation, stable profile hashing, deterministic ratings and aliases, conservative experience and language handling, Ollama structured-output deserialization and validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
+Coverage includes Phase 1 collection behavior plus candidate profile validation, stable profile hashing, deterministic ratings, core-stack handling and aliases, conservative experience and language handling, Ollama structured-output deserialization and validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
 
 ## Provider behavior and limitations
 

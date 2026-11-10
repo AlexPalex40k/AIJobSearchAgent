@@ -56,6 +56,78 @@ public sealed class JobMatchCalculatorTests
         Assert.Equal(["Java", "Spring"], result.MissingRequiredSkills);
     }
 
+    [Theory]
+    [MemberData(nameof(CoreStackMismatchCases))]
+    public void Calculate_ReturnsOneWhenOnlySupportingRequiredSkillsMatch(
+        IReadOnlyList<string> requiredSkills,
+        IReadOnlyList<string> coreRequiredSkills,
+        IReadOnlyList<string> candidateSkills)
+    {
+        var requirements = CreateRequirements(
+            requiredSkills,
+            [],
+            coreRequiredSkills: coreRequiredSkills);
+
+        var result = calculator.Calculate(requirements, CreateProfile(candidateSkills));
+
+        Assert.Equal(1, result.Rating);
+        Assert.Contains("role-defining core technologies", result.Explanation);
+    }
+
+    public static TheoryData<IReadOnlyList<string>, IReadOnlyList<string>, IReadOnlyList<string>> CoreStackMismatchCases => new()
+    {
+        { ["Python", "FastAPI", "Docker"], ["Python", "FastAPI"], ["Docker"] },
+        { ["Java", "Spring Boot", "SQL", "Docker"], ["Java", "Spring Boot"], ["SQL", "Docker"] },
+        { ["C#", "WPF", "XAML", "MVVM"], ["WPF", "XAML", "MVVM"], ["C#"] }
+    };
+
+    [Fact]
+    public void Calculate_PreservesPartialRatingWhenSomeCoreSkillsMatch()
+    {
+        var requirements = CreateRequirements(
+            ["C#", "ASP.NET Core", "React"],
+            [],
+            coreRequiredSkills: ["C#", "ASP.NET Core", "React"]);
+
+        var result = calculator.Calculate(requirements, CreateProfile(["C#", "ASP.NET Core"]));
+
+        Assert.Equal(3, result.Rating);
+        Assert.Equal(["React"], result.MissingRequiredSkills);
+    }
+
+    [Theory]
+    [InlineData(false, 5)]
+    [InlineData(true, 4)]
+    public void Calculate_AllCoreSkillsMatchPreservesExistingExcellentAndGoodRatings(
+        bool omitOptionalSkill,
+        int expectedRating)
+    {
+        var requirements = CreateRequirements(
+            ["C#", "ASP.NET Core"],
+            ["Docker"],
+            coreRequiredSkills: ["C#", "ASP.NET Core"]);
+        var candidateSkills = omitOptionalSkill
+            ? new[] { "C#", "ASP.NET Core" }
+            : new[] { "C#", "ASP.NET Core", "Docker" };
+
+        var result = calculator.Calculate(requirements, CreateProfile(candidateSkills));
+
+        Assert.Equal(expectedRating, result.Rating);
+    }
+
+    [Fact]
+    public void Calculate_InvalidCoreSkillsFallBackToExistingRatingLogic()
+    {
+        var requirements = CreateRequirements(
+            ["C#", "Docker"],
+            [],
+            coreRequiredSkills: ["Python"]);
+
+        var result = calculator.Calculate(requirements, CreateProfile(["Docker"]));
+
+        Assert.Equal(3, result.Rating);
+    }
+
     [Fact]
     public void Calculate_IgnoresExtraCandidateSkillsAndRemovesDuplicates()
     {
@@ -171,12 +243,16 @@ public sealed class JobMatchCalculatorTests
         IReadOnlyList<string> optional,
         bool hasClearRequirements = true,
         decimal? minimumYears = null,
-        IReadOnlyList<RequiredLanguage>? requiredLanguages = null) => new(
+        IReadOnlyList<RequiredLanguage>? requiredLanguages = null,
+        IReadOnlyList<string>? coreRequiredSkills = null) => new(
             required,
             optional,
             hasClearRequirements,
             minimumYears,
-            requiredLanguages ?? []);
+            requiredLanguages ?? [])
+        {
+            CoreRequiredSkills = coreRequiredSkills ?? []
+        };
 
     private static CandidateProfile CreateProfile(
         IReadOnlyList<string> skills,

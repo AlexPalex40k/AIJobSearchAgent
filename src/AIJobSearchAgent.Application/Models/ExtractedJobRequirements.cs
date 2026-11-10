@@ -5,6 +5,9 @@ public sealed record ExtractedJobRequirements(
     IReadOnlyList<string> OptionalSkills,
     bool HasClearRequirements,
     decimal? MinimumYearsProfessionalExperience,
-    IReadOnlyList<RequiredLanguage> RequiredLanguages);
+    IReadOnlyList<RequiredLanguage> RequiredLanguages)
+{
+    public IReadOnlyList<string> CoreRequiredSkills { get; init; } = [];
+}
 
 public sealed record RequiredLanguage(string Language, string? MinimumLevel);

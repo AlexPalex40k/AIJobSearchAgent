@@ -33,7 +33,7 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(4, result.Rating);
         Assert.Equal(["C#", "ASP.NET Core"], result.MatchedSkills);
         Assert.Equal(["Docker"], result.MissingOptionalSkills);
-        Assert.Equal("job-match-simple-v3", result.PromptVersion);
+        Assert.Equal("job-match-simple-v4", result.PromptVersion);
         Assert.NotNull(capturedRequest);
 
         using var requestJson = JsonDocument.Parse(capturedRequest);
@@ -229,6 +229,119 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.DoesNotContain("Kubernetes", result.MatchedSkills);
     }
 
+    [Theory]
+    [MemberData(nameof(CoreStackMismatchIntegrationCases))]
+    public async Task EvaluateAsync_ReturnsOneWhenOnlySupportingTechnologiesMatch(
+        string description,
+        IReadOnlyList<string> requiredSkills,
+        IReadOnlyList<string> coreRequiredSkills,
+        IReadOnlyList<string> candidateSkills)
+    {
+        using var httpClient = CreateTechnicalResponseClient(
+            requiredSkills,
+            [],
+            coreRequiredSkills);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy(description),
+            CreateProfile(candidateSkills.ToArray()),
+            CancellationToken.None);
+
+        Assert.Equal(1, result.Rating);
+        Assert.Contains("role-defining core technologies", result.Explanation);
+    }
+
+    public static TheoryData<string, IReadOnlyList<string>, IReadOnlyList<string>, IReadOnlyList<string>> CoreStackMismatchIntegrationCases => new()
+    {
+        {
+            "Python, FastAPI, and Docker are required.",
+            ["Python", "FastAPI", "Docker"],
+            ["Python", "FastAPI"],
+            ["Docker"]
+        },
+        {
+            "Java, Spring Boot, SQL, and Docker are required.",
+            ["Java", "Spring Boot", "SQL", "Docker"],
+            ["Java", "Spring Boot"],
+            ["SQL", "Docker"]
+        },
+        {
+            "C#, WPF, XAML, and MVVM are required.",
+            ["C#", "WPF", "XAML", "MVVM"],
+            ["WPF", "XAML", "MVVM"],
+            ["C#"]
+        }
+    };
+
+    [Fact]
+    public async Task EvaluateAsync_MissingSupportingRequirementKeepsPartialRating()
+    {
+        using var httpClient = CreateTechnicalResponseClient(
+            ["C#", "ASP.NET Core", "RabbitMQ"],
+            [],
+            ["C#", "ASP.NET Core"]);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C#, ASP.NET Core, and RabbitMQ are required."),
+            CreateProfile("C#", "ASP.NET Core"),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rating);
+        Assert.Equal(["RabbitMQ"], result.MissingRequiredSkills);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_PartialCoreMatchKeepsPartialRating()
+    {
+        using var httpClient = CreateTechnicalResponseClient(
+            ["C#", "ASP.NET Core", "React"],
+            [],
+            ["C#", "ASP.NET Core", "React"]);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C#, ASP.NET Core, and React are required."),
+            CreateProfile("C#", "ASP.NET Core"),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rating);
+        Assert.Equal(["React"], result.MissingRequiredSkills);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_EmptyCoreSkillsUseExistingPartialMatchLogic()
+    {
+        using var httpClient = CreateTechnicalResponseClient(
+            ["C#", "Docker"],
+            [],
+            []);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("C# and Docker are required."),
+            CreateProfile("Docker"),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rating);
+        Assert.Equal(["C#"], result.MissingRequiredSkills);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_InvalidCoreSkillsUseSafeFallbackAndAliases()
+    {
+        using var httpClient = CreateTechnicalResponseClient(
+            ["ASP.NET Core", "Docker"],
+            [],
+            ["ASP Net Core", "Python"]);
+
+        var result = await CreateService(httpClient).EvaluateAsync(
+            CreateVacancy("ASP.NET Core and Docker are required."),
+            CreateProfile("ASP Net Core"),
+            CancellationToken.None);
+
+        Assert.Equal(3, result.Rating);
+        Assert.Equal(["ASP.NET Core"], result.MatchedSkills);
+        Assert.Equal(["Docker"], result.MissingRequiredSkills);
+    }
+
     [Fact]
     public async Task EvaluateAsync_RejectsFabricatedEnglishNativeRequirement()
     {
@@ -313,6 +426,7 @@ public sealed class OllamaJobMatchingServiceTests
 
     [Theory]
     [InlineData("requiredSkills")]
+    [InlineData("coreRequiredSkills")]
     [InlineData("optionalSkills")]
     [InlineData("hasClearRequirements")]
     [InlineData("minimumYearsProfessionalExperience")]
@@ -449,11 +563,14 @@ public sealed class OllamaJobMatchingServiceTests
 
     private static HttpClient CreateTechnicalResponseClient(
         IReadOnlyList<string> requiredSkills,
-        IReadOnlyList<string> optionalSkills)
+        IReadOnlyList<string> optionalSkills,
+        IReadOnlyList<string>? coreRequiredSkills = null)
     {
         var output = CreateValidStructuredOutput();
         output["requiredSkills"] = new JsonArray(
             requiredSkills.Select(skill => JsonValue.Create(skill)).ToArray<JsonNode?>());
+        output["coreRequiredSkills"] = new JsonArray(
+            (coreRequiredSkills ?? []).Select(skill => JsonValue.Create(skill)).ToArray<JsonNode?>());
         output["optionalSkills"] = new JsonArray(
             optionalSkills.Select(skill => JsonValue.Create(skill)).ToArray<JsonNode?>());
         output["requiredLanguages"] = new JsonArray();
@@ -464,6 +581,7 @@ public sealed class OllamaJobMatchingServiceTests
     private static JsonObject CreateValidStructuredOutput() => new()
     {
         ["requiredSkills"] = new JsonArray("C#", "ASP.NET Core"),
+        ["coreRequiredSkills"] = new JsonArray("C#", "ASP.NET Core"),
         ["optionalSkills"] = new JsonArray("Docker"),
         ["hasClearRequirements"] = true,
         ["minimumYearsProfessionalExperience"] = 3,

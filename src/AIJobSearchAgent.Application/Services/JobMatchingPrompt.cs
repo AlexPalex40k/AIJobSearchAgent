@@ -5,7 +5,7 @@ namespace AIJobSearchAgent.Application.Services;
 
 public static class JobMatchingPrompt
 {
-    public const string Version = "job-match-simple-v3";
+    public const string Version = "job-match-simple-v4";
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -22,6 +22,9 @@ public static class JobMatchingPrompt
         Extraction rules:
         - requiredSkills contains only technologies, tools, programming languages, databases, frameworks, libraries, and platforms required by the role.
         - Classify a technology as required when the vacancy explicitly calls it required or mandatory. A technology clearly necessary for the stated core development responsibilities may also be required without that literal wording.
+        - coreRequiredSkills contains only the requiredSkills that define the role's main specialization or essential technical purpose. It must be a subset of requiredSkills.
+        - Do not put generic supporting technologies such as SQL or Docker in coreRequiredSkills by default. Include them only when they define the role's main specialization or essential technical purpose.
+        - Do not infer coreRequiredSkills from the job title. Use an empty array when reliable core technologies cannot be identified from the description.
         - optionalSkills contains only technologies explicitly described as optional, preferred, useful, a bonus, or nice-to-have.
         - Do not classify general professional experience, years of experience, leadership, responsibilities, or generic work practices such as code review as technologies.
         - Do not include a technology explicitly described as irrelevant, not required, not used, or outside the role.

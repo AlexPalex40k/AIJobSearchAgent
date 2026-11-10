@@ -60,6 +60,9 @@ public static class TechnicalRequirementVerifier
         var verifiedRequirements = extractedRequirements with
         {
             RequiredSkills = verifiedRequired,
+            CoreRequiredSkills = VerifyCoreSkills(
+                extractedRequirements.CoreRequiredSkills,
+                verifiedRequired),
             OptionalSkills = verifiedOptional,
             HasClearRequirements = extractedRequirements.HasClearRequirements && verifiedRequired.Count > 0
         };
@@ -86,6 +89,32 @@ public static class TechnicalRequirementVerifier
         return classifications.Count == 0
             ? null
             : $"Ignored extracted technical skills not supported as requirements by the vacancy description ({string.Join("; ", classifications)}).";
+    }
+
+    private static IReadOnlyList<string> VerifyCoreSkills(
+        IEnumerable<string> extractedCoreSkills,
+        IEnumerable<string> verifiedRequiredSkills)
+    {
+        var requiredByKey = verifiedRequiredSkills
+            .Where(skill => !string.IsNullOrWhiteSpace(skill))
+            .GroupBy(TechnicalSkillMatcher.Normalize, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First(),
+                StringComparer.OrdinalIgnoreCase);
+        var verifiedCore = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var coreSkill in extractedCoreSkills.Where(skill => !string.IsNullOrWhiteSpace(skill)))
+        {
+            var key = TechnicalSkillMatcher.Normalize(coreSkill);
+            if (requiredByKey.TryGetValue(key, out var requiredSkill) && seen.Add(key))
+            {
+                verifiedCore.Add(requiredSkill);
+            }
+        }
+
+        return verifiedCore;
     }
 
     private static IReadOnlyList<SkillCandidate> CreateCandidates(ExtractedJobRequirements requirements)

@@ -13,6 +13,10 @@ public static partial class BenchmarkDatasetValidator
     {
         var errors = new List<string>();
         ValidateRequiredText(dataset.DatasetVersion, "datasetVersion", 100, errors);
+        if (dataset.MatchingVersion is not null)
+        {
+            ValidateRequiredText(dataset.MatchingVersion, "matchingVersion", 100, errors);
+        }
 
         if (dataset.Cases is not { Count: > 0 })
         {

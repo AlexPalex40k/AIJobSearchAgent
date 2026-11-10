@@ -46,6 +46,40 @@ public sealed class BenchmarkTests
     }
 
     [Fact]
+    public async Task SimplifiedV3Dataset_IsApprovedAndPreservesOriginalVacancies()
+    {
+        var solutionRoot = FindSolutionRoot();
+        var legacyDataset = await BenchmarkDatasetLoader.LoadAsync(
+            Path.Combine(solutionRoot, "benchmarks", "dataset.v1.json"),
+            CancellationToken.None);
+        var simplifiedDataset = await BenchmarkDatasetLoader.LoadAsync(
+            Path.Combine(solutionRoot, "benchmarks", "dataset.simple.v3.json"),
+            CancellationToken.None);
+
+        Assert.Equal("2.0", simplifiedDataset.Dataset.DatasetVersion);
+        Assert.Equal("job-match-simple-v3", simplifiedDataset.Dataset.MatchingVersion);
+        Assert.Equal(18, simplifiedDataset.Dataset.Cases.Count);
+
+        foreach (var legacyCase in legacyDataset.Dataset.Cases)
+        {
+            var simplifiedCase = Assert.Single(
+                simplifiedDataset.Dataset.Cases,
+                benchmarkCase => benchmarkCase.Id == legacyCase.Id);
+
+            Assert.Equal(legacyCase.VacancyTitle, simplifiedCase.VacancyTitle);
+            Assert.Equal(legacyCase.Company, simplifiedCase.Company);
+            Assert.Equal(legacyCase.Location, simplifiedCase.Location);
+            Assert.Equal(legacyCase.IsRemote, simplifiedCase.IsRemote);
+            Assert.Equal(legacyCase.Description, simplifiedCase.Description);
+            Assert.Equal(legacyCase.VacancyUrl, simplifiedCase.VacancyUrl);
+            Assert.Equal(ReferenceLabelStatus.Approved, simplifiedCase.LabelStatus);
+            Assert.True(simplifiedCase.ExpectedRating is >= 1 and <= 5);
+            Assert.False(string.IsNullOrWhiteSpace(simplifiedCase.ReviewedBy));
+            Assert.NotNull(simplifiedCase.ReviewedAt);
+        }
+    }
+
+    [Fact]
     public void DatasetValidation_AcceptsValidDatasetAndRejectsDuplicateCaseIds()
     {
         var valid = new BenchmarkDataset
@@ -157,6 +191,20 @@ public sealed class BenchmarkTests
         Assert.Equal(2, metrics.WithinOnePointAccuracy!.Numerator);
         Assert.Equal(3, metrics.WithinOnePointAccuracy.Denominator);
         Assert.Equal(2d / 3, metrics.WithinOnePointAccuracy.Value!.Value, 10);
+    }
+
+    [Fact]
+    public void Metrics_DoNotReuseApprovedLabelsFromAnIncompatibleRatingRubric()
+    {
+        var metrics = BenchmarkMetricsCalculator.Calculate(
+        [
+            CreateResult("old-rubric-label", 5, 5, ReferenceLabelStatus.Approved)
+        ], includeApprovedLabels: false);
+
+        Assert.Equal(1, metrics.ApprovedLabelCount);
+        Assert.Null(metrics.ExactMatchAccuracy);
+        Assert.Null(metrics.WithinOnePointAccuracy);
+        Assert.Null(metrics.MeanAbsoluteError);
     }
 
     [Fact]

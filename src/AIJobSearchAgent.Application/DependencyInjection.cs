@@ -10,6 +10,7 @@ public static class DependencyInjection
         .AddSingleton<JobMatchCalculator>()
         .AddScoped<ImportJobsUseCase>()
         .AddScoped<GetJobsUseCase>()
+        .AddScoped<GetRankedJobsUseCase>()
         .AddScoped<EvaluateJobUseCase>()
         .AddScoped<EvaluateJobsBatchUseCase>()
         .AddScoped<GetJobEvaluationsUseCase>();

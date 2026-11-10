@@ -12,6 +12,7 @@ namespace AIJobSearchAgent.Api.Controllers;
 public sealed class JobsController(
     ImportJobsUseCase importJobs,
     GetJobsUseCase getJobs,
+    GetRankedJobsUseCase getRankedJobs,
     EvaluateJobUseCase evaluateJob,
     EvaluateJobsBatchUseCase evaluateJobsBatch,
     GetJobEvaluationsUseCase getEvaluations) : ControllerBase
@@ -56,6 +57,40 @@ public sealed class JobsController(
 
         var query = new JobQuery(keyword, source, page, pageSize);
         return Ok(await getJobs.ExecuteAsync(query, cancellationToken));
+    }
+
+    [HttpGet("ranked")]
+    [ProducesResponseType<PagedResult<RankedJobVacancyDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<RankedJobVacancyDto>>> GetRanked(
+        [FromQuery, StringLength(KeywordMatcher.MaximumSearchQueryLength)] string? keyword,
+        [FromQuery, StringLength(GetRankedJobsUseCase.MaximumSourceLength)] string? source,
+        [FromQuery, Range(1, int.MaxValue)] int page = 1,
+        [FromQuery, Range(1, GetRankedJobsUseCase.MaximumPageSize)] int pageSize = 20,
+        [FromQuery, StringLength(20)] string sort = RankedJobSortParser.DefaultValue,
+        CancellationToken cancellationToken = default)
+    {
+        if (KeywordMatcher.TokenizeSearchQuery(keyword).Count > KeywordMatcher.MaximumSearchTokenCount)
+        {
+            ModelState.AddModelError(
+                nameof(keyword),
+                $"Search query must contain at most {KeywordMatcher.MaximumSearchTokenCount} tokens.");
+        }
+
+        if (!RankedJobSortParser.TryParse(sort, out var parsedSort))
+        {
+            ModelState.AddModelError(
+                nameof(sort),
+                "Sort must be rating_desc, rating_asc, or newest.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var query = new RankedJobQuery(keyword, source, page, pageSize, parsedSort);
+        return Ok(await getRankedJobs.ExecuteAsync(query, cancellationToken));
     }
 
     [HttpGet("{id:guid}")]

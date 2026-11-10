@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlite($"Data Source={databasePath}"));
         services.AddScoped<IJobVacancyRepository, JobVacancyRepository>();
+        services.AddScoped<IRankedJobVacancyQuery, RankedJobVacancyQuery>();
         services.AddScoped<IJobMatchEvaluationRepository, JobMatchEvaluationRepository>();
 
         services.AddOptions<ArbeitnowOptions>()

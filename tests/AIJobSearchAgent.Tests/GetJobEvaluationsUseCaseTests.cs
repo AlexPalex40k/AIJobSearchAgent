@@ -91,6 +91,13 @@ public sealed class GetJobEvaluationsUseCaseTests
             RequestedVacancyId = jobVacancyId;
             return Task.FromResult(evaluations);
         }
+
+        public Task<JobMatchEvaluation?> GetSuccessfulAsync(
+            Guid jobVacancyId,
+            string profileHash,
+            string modelName,
+            string promptVersion,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class StubVacancyRepository(JobVacancy vacancy) : IJobVacancyRepository

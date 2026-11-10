@@ -11,5 +11,6 @@ public static class DependencyInjection
         .AddScoped<ImportJobsUseCase>()
         .AddScoped<GetJobsUseCase>()
         .AddScoped<EvaluateJobUseCase>()
+        .AddScoped<EvaluateJobsBatchUseCase>()
         .AddScoped<GetJobEvaluationsUseCase>();
 }

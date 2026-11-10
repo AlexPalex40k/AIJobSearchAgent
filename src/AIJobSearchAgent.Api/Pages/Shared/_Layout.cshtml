@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Browse locally imported job vacancies and their current evaluation ratings." />
+    <title>@ViewData["Title"] - AI Job Search Agent</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="site-header">
+        <div class="shell header-content">
+            <a class="brand" asp-page="/Jobs/Index" aria-label="AI Job Search Agent jobs">
+                <span class="brand-mark" aria-hidden="true">AI</span>
+                <span>
+                    <strong>Job Search Agent</strong>
+                    <small>Local vacancy review</small>
+                </span>
+            </a>
+        </div>
+    </header>
+
+    <main class="shell">
+        @RenderBody()
+    </main>
+</body>
+</html>

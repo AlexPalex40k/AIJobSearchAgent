@@ -74,13 +74,21 @@ To create a future migration:
 dotnet ef migrations add MigrationName --project src/AIJobSearchAgent.Infrastructure --startup-project src/AIJobSearchAgent.Api
 ```
 
-## Run the API
+## Run the API and local web UI
 
 ```powershell
 dotnet run --project src/AIJobSearchAgent.Api
 ```
 
-The Development launch profile listens at `http://localhost:5091`. Open Swagger UI at:
+The Development launch profile listens at `http://localhost:5091`. Open the local job listings UI at:
+
+```text
+http://localhost:5091/jobs
+```
+
+The page displays imported vacancies and their current evaluation state without starting new evaluations. Use the keyword field to search vacancy titles and descriptions, choose rating descending, rating ascending, or newest-first sorting, and move between pages with the Previous and Next links. Filter and sort values are retained while paging. Evaluation details expand in place, and original vacancy links open in a new browser tab.
+
+Swagger UI remains available at:
 
 ```text
 http://localhost:5091/swagger

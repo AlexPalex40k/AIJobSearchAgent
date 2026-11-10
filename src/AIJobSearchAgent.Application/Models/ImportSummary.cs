@@ -5,4 +5,7 @@ public sealed record ImportSummary(
     int TotalMatched,
     int Inserted,
     int SkippedDuplicates,
-    int RejectedInvalid);
+    int RejectedInvalid)
+{
+    public IReadOnlyList<Guid> PersistedVacancyIds { get; init; } = [];
+}

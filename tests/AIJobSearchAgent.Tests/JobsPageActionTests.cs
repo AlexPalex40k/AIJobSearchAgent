@@ -22,13 +22,18 @@ public sealed class JobsPageActionTests
     public async Task OnPostImportAsync_ParsesKeywordsUsesImportUseCaseAndShowsSummary()
     {
         var harness = new PageHarness();
+        var matchingVacancy = CreateVacancy("one", ".NET Engineer", "C# and ASP.NET Core");
         harness.Provider.Results =
         [
-            CreateVacancy("one", ".NET Engineer", "C# and ASP.NET Core"),
+            matchingVacancy,
             CreateVacancy("two", "Java Engineer", "Spring"),
             CreateVacancy("invalid", ".NET Engineer", ".NET", url: "not-a-url")
         ];
-        harness.Vacancies.SaveResult = new SaveJobsResult(1, 0);
+        harness.Vacancies.Stored.Add(matchingVacancy.Id, matchingVacancy);
+        harness.Vacancies.SaveResult = new SaveJobsResult(1, 0)
+        {
+            PersistedVacancyIds = [matchingVacancy.Id]
+        };
         harness.Model.ImportForm = new IndexModel.ImportInput
         {
             Keywords = " .NET, C#, , ASP.NET Core, .net ",
@@ -51,9 +56,10 @@ public sealed class JobsPageActionTests
         Assert.Equal([".NET", "C#", "ASP.NET Core"], harness.Provider.ReceivedCriteria.Keywords);
         Assert.Equal(2, harness.Provider.ReceivedCriteria.MaxPages);
         Assert.Equal(
-            "Import completed: fetched 3, matched 1, inserted 1, duplicates 0, invalid 1.",
+            "Import completed: fetched 3, matched 1, inserted 1, duplicates 0, invalid 1. " +
+            "Evaluation completed: 1 succeeded, 0 skipped, 0 failed.",
             harness.Model.ImportSummaryMessage);
-        Assert.Equal(0, harness.Matching.CallCount);
+        Assert.Equal(1, harness.Matching.CallCount);
     }
 
     [Theory]
@@ -295,6 +301,30 @@ public sealed class JobsPageActionTests
             attribute => attribute is AutoValidateAntiforgeryTokenAttribute);
     }
 
+    [Fact]
+    public void PageMarkup_UsesOneOriginalVacancyLinkWithUpdatedLabel()
+    {
+        var pagePath = Path.GetFullPath(
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "..",
+                "..",
+                "..",
+                "..",
+                "..",
+                "src",
+                "AIJobSearchAgent.Api",
+                "Pages",
+                "Jobs",
+                "Index.cshtml"));
+        var markup = File.ReadAllText(pagePath);
+
+        Assert.Contains(">Original vacancy</a>", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Original job", markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Open original vacancy", markup, StringComparison.Ordinal);
+        Assert.Equal(1, markup.Split("href=\"@job.Url\"", StringSplitOptions.None).Length - 1);
+    }
+
     private static JobVacancy CreateVacancy(
         string externalId,
         string title,
@@ -338,10 +368,11 @@ public sealed class JobsPageActionTests
                 Matching,
                 evaluateJob,
                 NullLogger<EvaluateJobsBatchUseCase>.Instance);
+            var importAndEvaluateJobs = new ImportAndEvaluateJobsUseCase(importJobs, evaluateBatch);
 
             Model = new IndexModel(
                 rankedJobs,
-                importJobs,
+                importAndEvaluateJobs,
                 evaluateBatch,
                 Options.Create(new ArbeitnowOptions { MaxPages = configuredMaximumPages }),
                 NullLogger<IndexModel>.Instance)

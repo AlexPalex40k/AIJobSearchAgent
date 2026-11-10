@@ -31,9 +31,9 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
             }
         }
 
-        var existingKeys = await GetExistingKeysAsync(distinctVacancies.Values, cancellationToken);
+        var persistedIds = await GetExistingVacancyIdsAsync(distinctVacancies.Values, cancellationToken);
         var pendingVacancies = distinctVacancies
-            .Where(pair => !existingKeys.Contains(pair.Key))
+            .Where(pair => !persistedIds.ContainsKey(pair.Key))
             .Select(pair => pair.Value)
             .ToList();
         duplicates += distinctVacancies.Count - pendingVacancies.Count;
@@ -46,6 +46,11 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
             {
                 await dbContext.SaveChangesAsync(cancellationToken);
                 inserted += pendingVacancies.Count;
+                foreach (var vacancy in pendingVacancies)
+                {
+                    persistedIds.Add(CreateKey(vacancy.Source, vacancy.ExternalId), vacancy.Id);
+                }
+
                 break;
             }
             catch (DbUpdateException exception) when (IsUniqueConstraintViolation(exception))
@@ -55,23 +60,31 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
                     dbContext.Entry(vacancy).State = EntityState.Detached;
                 }
 
-                var concurrentlyInsertedKeys = await GetExistingKeysAsync(
+                var concurrentlyInsertedVacancies = await GetExistingVacancyIdsAsync(
                     pendingVacancies,
                     cancellationToken);
-                if (concurrentlyInsertedKeys.Count == 0)
+                if (concurrentlyInsertedVacancies.Count == 0)
                 {
                     throw;
                 }
 
-                duplicates += concurrentlyInsertedKeys.Count;
+                foreach (var pair in concurrentlyInsertedVacancies)
+                {
+                    persistedIds[pair.Key] = pair.Value;
+                }
+
+                duplicates += concurrentlyInsertedVacancies.Count;
                 pendingVacancies = pendingVacancies
-                    .Where(vacancy => !concurrentlyInsertedKeys.Contains(
+                    .Where(vacancy => !concurrentlyInsertedVacancies.ContainsKey(
                         CreateKey(vacancy.Source, vacancy.ExternalId)))
                     .ToList();
             }
         }
 
-        return new SaveJobsResult(inserted, duplicates);
+        return new SaveJobsResult(inserted, duplicates)
+        {
+            PersistedVacancyIds = distinctVacancies.Keys.Select(key => persistedIds[key]).ToArray()
+        };
     }
 
     public async Task<PagedResult<JobVacancy>> GetAsync(
@@ -112,7 +125,7 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
 
     private static string CreateKey(string source, string externalId) => $"{source}\u001f{externalId}";
 
-    private async Task<HashSet<string>> GetExistingKeysAsync(
+    private async Task<Dictionary<string, Guid>> GetExistingVacancyIdsAsync(
         IEnumerable<JobVacancy> vacancies,
         CancellationToken cancellationToken)
     {
@@ -125,13 +138,15 @@ public sealed class JobVacancyRepository(AppDbContext dbContext) : IJobVacancyRe
         var existingPairs = await dbContext.JobVacancies
             .AsNoTracking()
             .Where(vacancy => sources.Contains(vacancy.Source) && externalIds.Contains(vacancy.ExternalId))
-            .Select(vacancy => new { vacancy.Source, vacancy.ExternalId })
+            .Select(vacancy => new { vacancy.Id, vacancy.Source, vacancy.ExternalId })
             .ToListAsync(cancellationToken);
 
         return existingPairs
-            .Select(pair => CreateKey(pair.Source, pair.ExternalId))
-            .Where(candidateKeys.Contains)
-            .ToHashSet(StringComparer.Ordinal);
+            .Where(pair => candidateKeys.Contains(CreateKey(pair.Source, pair.ExternalId)))
+            .ToDictionary(
+                pair => CreateKey(pair.Source, pair.ExternalId),
+                pair => pair.Id,
+                StringComparer.Ordinal);
     }
 
     private static bool IsUniqueConstraintViolation(DbUpdateException exception) =>

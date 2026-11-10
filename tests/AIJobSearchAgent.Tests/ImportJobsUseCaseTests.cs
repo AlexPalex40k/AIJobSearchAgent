@@ -17,7 +17,11 @@ public sealed class ImportJobsUseCaseTests
             CreateVacancy("unmatched", "Java Developer", "Build JVM services"),
             CreateVacancy("invalid", "", "C# but missing a title")
         ]);
-        var repository = new StubRepository(new SaveJobsResult(0, 1));
+        var persistedVacancyId = Guid.NewGuid();
+        var repository = new StubRepository(new SaveJobsResult(0, 1)
+        {
+            PersistedVacancyIds = [persistedVacancyId]
+        });
         var useCase = new ImportJobsUseCase(
             provider,
             repository,
@@ -32,6 +36,7 @@ public sealed class ImportJobsUseCaseTests
         Assert.Equal(0, summary.Inserted);
         Assert.Equal(1, summary.SkippedDuplicates);
         Assert.Equal(1, summary.RejectedInvalid);
+        Assert.Equal([persistedVacancyId], summary.PersistedVacancyIds);
         Assert.Single(repository.ReceivedVacancies);
     }
 

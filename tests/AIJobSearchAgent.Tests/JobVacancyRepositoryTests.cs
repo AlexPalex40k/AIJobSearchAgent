@@ -22,15 +22,17 @@ public sealed class JobVacancyRepositoryTests
         await dbContext.Database.MigrateAsync();
         var repository = new JobVacancyRepository(dbContext);
 
+        var firstDuplicate = CreateVacancy("duplicate", "Arbeitnow");
+        var ignoredDuplicate = CreateVacancy("duplicate", "Arbeitnow");
+        var unique = CreateVacancy("unique", "Arbeitnow");
         var result = await repository.AddNewAsync(
-            [
-                CreateVacancy("duplicate", "Arbeitnow"),
-                CreateVacancy("duplicate", "Arbeitnow"),
-                CreateVacancy("unique", "Arbeitnow")
-            ],
+            [firstDuplicate, ignoredDuplicate, unique],
             CancellationToken.None);
 
-        Assert.Equal(new SaveJobsResult(2, 1), result);
+        Assert.Equal(2, result.Inserted);
+        Assert.Equal(1, result.SkippedDuplicates);
+        Assert.True(new HashSet<Guid> { firstDuplicate.Id, unique.Id }.SetEquals(result.PersistedVacancyIds));
+        Assert.DoesNotContain(ignoredDuplicate.Id, result.PersistedVacancyIds);
         Assert.Equal(2, await dbContext.JobVacancies.CountAsync());
     }
 
@@ -46,15 +48,22 @@ public sealed class JobVacancyRepositoryTests
         await dbContext.Database.MigrateAsync();
         var repository = new JobVacancyRepository(dbContext);
 
+        var insertedVacancy = CreateVacancy("same-id", "Arbeitnow");
+        var duplicateWithGeneratedId = CreateVacancy("same-id", "Arbeitnow");
         var firstResult = await repository.AddNewAsync(
-            [CreateVacancy("same-id", "Arbeitnow")],
+            [insertedVacancy],
             CancellationToken.None);
         var secondResult = await repository.AddNewAsync(
-            [CreateVacancy("same-id", "Arbeitnow")],
+            [duplicateWithGeneratedId],
             CancellationToken.None);
 
-        Assert.Equal(new SaveJobsResult(1, 0), firstResult);
-        Assert.Equal(new SaveJobsResult(0, 1), secondResult);
+        Assert.Equal(1, firstResult.Inserted);
+        Assert.Equal(0, firstResult.SkippedDuplicates);
+        Assert.Equal([insertedVacancy.Id], firstResult.PersistedVacancyIds);
+        Assert.Equal(0, secondResult.Inserted);
+        Assert.Equal(1, secondResult.SkippedDuplicates);
+        Assert.Equal([insertedVacancy.Id], secondResult.PersistedVacancyIds);
+        Assert.DoesNotContain(duplicateWithGeneratedId.Id, secondResult.PersistedVacancyIds);
         Assert.Equal(1, await dbContext.JobVacancies.CountAsync());
 
         var page = await repository.GetAsync(
@@ -78,15 +87,19 @@ public sealed class JobVacancyRepositoryTests
         await dbContext.Database.MigrateAsync();
         var repository = new JobVacancyRepository(dbContext);
 
+        JobVacancy[] vacancies =
+        [
+            CreateVacancy("batch-1", "Arbeitnow"),
+            CreateVacancy("batch-2", "Arbeitnow"),
+            CreateVacancy("batch-3", "Other")
+        ];
         var result = await repository.AddNewAsync(
-            [
-                CreateVacancy("batch-1", "Arbeitnow"),
-                CreateVacancy("batch-2", "Arbeitnow"),
-                CreateVacancy("batch-3", "Other")
-            ],
+            vacancies,
             CancellationToken.None);
 
-        Assert.Equal(new SaveJobsResult(3, 0), result);
+        Assert.Equal(3, result.Inserted);
+        Assert.Equal(0, result.SkippedDuplicates);
+        Assert.True(vacancies.Select(vacancy => vacancy.Id).ToHashSet().SetEquals(result.PersistedVacancyIds));
         Assert.Equal(1, interceptor.AsyncSavingChangesCalls);
         Assert.Equal(3, await dbContext.JobVacancies.CountAsync());
     }

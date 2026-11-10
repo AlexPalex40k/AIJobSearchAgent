@@ -50,7 +50,10 @@ public sealed class ImportJobsUseCase(
             validMatches.Count,
             saveResult.Inserted,
             saveResult.SkippedDuplicates,
-            rejectedInvalid);
+            rejectedInvalid)
+        {
+            PersistedVacancyIds = saveResult.PersistedVacancyIds
+        };
 
         logger.LogInformation(
             "Completed job import from {Provider}: fetched {Fetched}, matched {Matched}, inserted {Inserted}, duplicates {Duplicates}, invalid {Invalid}",

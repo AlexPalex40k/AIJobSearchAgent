@@ -88,9 +88,11 @@ http://localhost:5091/jobs
 
 The page displays imported vacancies and their current evaluation state. Use the keyword field to search vacancy titles and descriptions, choose rating descending, rating ascending, or newest-first sorting, and move between pages with the Previous and Next links. Filter and sort values are retained while paging. Evaluation details expand in place, and original vacancy links open in a new browser tab.
 
-To import vacancies in the browser, enter one or more comma-separated search terms in **Import vacancies**, choose how many recent Arbeitnow API pages to fetch, and select **Import jobs**. Empty terms are ignored; at least one keyword is required. The page accepts at most 20 keywords of 100 characters each and enforces the Arbeitnow page ceiling from configuration. Arbeitnow exposes only a limited set of recent API pages, so this action filters those fetched pages and does not search the provider's complete history. Importing does not automatically evaluate the new vacancies.
+To import vacancies in the browser, enter one or more comma-separated search terms in **Import vacancies**, choose how many recent Arbeitnow API pages to fetch, and select **Import jobs**. Empty terms are ignored; at least one keyword is required. The page accepts at most 20 keywords of 100 characters each and enforces the Arbeitnow page ceiling from configuration. Arbeitnow exposes only a limited set of recent API pages, so this action filters those fetched pages and does not search the provider's complete history.
 
-To evaluate vacancies, select up to 20 rows on the current page and choose **Evaluate selected**. This is a synchronous local Ollama operation, so it can take several minutes and the browser page should remain open. The refreshed list shows the resulting current ratings and statuses while preserving the active search, sort, and page. A successful evaluation is skipped when one already exists for the same candidate-profile hash, configured model, and prompt version. Failed or timed-out evaluations are retried, and an individual failure is counted in the summary without stopping the remaining selected vacancies.
+After saving the matching vacancies, the browser workflow automatically evaluates both newly inserted vacancies and duplicates returned by that import. Existing duplicates use their stored database IDs; unrelated stored vacancies are not evaluated. Work is processed sequentially in groups of up to 20 without fetching the provider pages again. A successful current evaluation is skipped when its candidate-profile hash, model, and prompt version still match, while failed or unevaluated vacancies are attempted. Import and evaluation are synchronous and can take several minutes, so keep the page open until the combined summary appears.
+
+Manual retries remain available: select up to 20 rows on the current page and choose **Evaluate selected**. The refreshed list shows the resulting current ratings and statuses while preserving the active search, sort, and page. Failed or timed-out evaluations can be retried, and an individual failure is counted in the summary without stopping the remaining selected vacancies.
 
 Swagger UI remains available at:
 
@@ -440,6 +442,7 @@ The import summary counters mean:
 - `inserted`: new rows committed to SQLite.
 - `skippedDuplicates`: valid matches skipped because the same `(source, externalId)` already exists or appeared twice in the batch.
 - `rejectedInvalid`: provider results missing required identity/content fields or containing invalid values.
+- `persistedVacancyIds`: authoritative IDs of the distinct matched rows, including existing duplicates; the browser uses these IDs for automatic evaluation.
 
 ## Tests
 
@@ -449,7 +452,7 @@ Tests use mocked HTTP responses and disposable in-memory or temporary-file SQLit
 dotnet test AIJobSearchAgent.sln
 ```
 
-Coverage includes Phase 1 collection behavior plus candidate profile validation, stable profile hashing, deterministic ratings, core-stack handling and aliases, conservative experience and language handling, Ollama structured-output deserialization and validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
+Coverage includes Phase 1 collection behavior, import-and-evaluate batching, persisted duplicate IDs, candidate profile validation, stable profile hashing, deterministic ratings, core-stack handling and aliases, conservative experience and language handling, Ollama structured-output deserialization and validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
 
 ## Provider behavior and limitations
 

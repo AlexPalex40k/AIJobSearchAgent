@@ -9,6 +9,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services) => services
         .AddSingleton<JobMatchCalculator>()
         .AddScoped<ImportJobsUseCase>()
+        .AddScoped<ImportAndEvaluateJobsUseCase>()
         .AddScoped<GetJobsUseCase>()
         .AddScoped<GetRankedJobsUseCase>()
         .AddScoped<EvaluateJobUseCase>()

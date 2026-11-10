@@ -12,7 +12,7 @@ namespace AIJobSearchAgent.Api.Pages.Jobs;
 [AutoValidateAntiforgeryToken]
 public sealed class IndexModel(
     GetRankedJobsUseCase getRankedJobs,
-    ImportJobsUseCase importJobs,
+    ImportAndEvaluateJobsUseCase importAndEvaluateJobs,
     EvaluateJobsBatchUseCase evaluateJobsBatch,
     IOptions<ArbeitnowOptions> arbeitnowOptions,
     ILogger<IndexModel> logger) : PageModel
@@ -75,13 +75,15 @@ public sealed class IndexModel(
 
         try
         {
-            var summary = await importJobs.ExecuteAsync(
+            var summary = await importAndEvaluateJobs.ExecuteAsync(
                 new JobSearchCriteria(keywords, ImportForm.MaximumPages),
                 cancellationToken);
             ImportSummaryMessage =
-                $"Import completed: fetched {summary.TotalFetched}, matched {summary.TotalMatched}, " +
-                $"inserted {summary.Inserted}, duplicates {summary.SkippedDuplicates}, " +
-                $"invalid {summary.RejectedInvalid}.";
+                $"Import completed: fetched {summary.Import.TotalFetched}, matched {summary.Import.TotalMatched}, " +
+                $"inserted {summary.Import.Inserted}, duplicates {summary.Import.SkippedDuplicates}, " +
+                $"invalid {summary.Import.RejectedInvalid}. " +
+                $"Evaluation completed: {summary.SuccessfullyEvaluatedCount} succeeded, " +
+                $"{summary.SkippedCount} skipped, {summary.FailedCount} failed.";
             return RedirectToJobs(keyword, sort, page);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

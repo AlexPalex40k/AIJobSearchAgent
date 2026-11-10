@@ -145,7 +145,7 @@ h1 {
     display: grid;
     grid-template-columns: minmax(240px, 1fr) minmax(210px, 280px) auto;
     gap: 1rem;
-    align-items: end;
+    align-items: start;
     padding: 1.25rem;
     border: 1px solid var(--line);
     border-radius: var(--radius);
@@ -189,6 +189,7 @@ summary:focus-visible {
 .filter-actions {
     display: flex;
     gap: 0.55rem;
+    padding-top: 1.65rem;
 }
 
 .button {
@@ -278,7 +279,11 @@ summary:focus-visible {
     display: grid;
     grid-template-columns: minmax(240px, 1fr) 150px auto;
     gap: 0.75rem;
-    align-items: end;
+    align-items: start;
+}
+
+.import-form > .button {
+    margin-top: 1.65rem;
 }
 
 .field-hint {
@@ -589,6 +594,14 @@ summary {
 
     .filter-actions .button {
         flex: 1;
+    }
+
+    .filter-actions {
+        padding-top: 0;
+    }
+
+    .import-form > .button {
+        margin-top: 0;
     }
 
     .details-card dl {

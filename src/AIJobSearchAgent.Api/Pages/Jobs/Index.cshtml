@@ -68,6 +68,7 @@
         <h2 id="import-heading">Import vacancies</h2>
         <p>
             Arbeitnow returns a limited number of recent pages. Keywords filter those pages; they do not search the provider's entire history.
+            Matching vacancies are saved and then evaluated automatically. This can take several minutes, so keep this page open.
         </p>
     </div>
     <form method="post" asp-page-handler="Import" class="import-form">
@@ -188,7 +189,7 @@ else
                         <td class="links-cell">
                             @if (IndexModel.IsSafeExternalUrl(job.Url))
                             {
-                                <a href="@job.Url" target="_blank" rel="noopener noreferrer nofollow">Original job</a>
+                                <a href="@job.Url" target="_blank" rel="noopener noreferrer nofollow">Original vacancy</a>
                             }
                             <details>
                                 <summary>Evaluation details</summary>
@@ -214,10 +215,6 @@ else
                                             </div>
                                         </dl>
                                         <p>@(string.IsNullOrWhiteSpace(job.Explanation) ? "No explanation is available." : job.Explanation)</p>
-                                    }
-                                    @if (IndexModel.IsSafeExternalUrl(job.Url))
-                                    {
-                                        <a href="@job.Url" target="_blank" rel="noopener noreferrer nofollow">Open original vacancy</a>
                                     }
                                 </div>
                             </details>

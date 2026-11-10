@@ -106,19 +106,21 @@ public sealed class JobsPageTests
             profileProvider,
             matchingService,
             NullLogger<EvaluateJobUseCase>.Instance);
+        var importJobs = new ImportJobsUseCase(
+            new NoOpJobProvider(),
+            vacancyRepository,
+            NullLogger<ImportJobsUseCase>.Instance);
+        var evaluateJobsBatch = new EvaluateJobsBatchUseCase(
+            vacancyRepository,
+            evaluationRepository,
+            profileProvider,
+            matchingService,
+            evaluateJob,
+            NullLogger<EvaluateJobsBatchUseCase>.Instance);
         return new IndexModel(
             useCase,
-            new ImportJobsUseCase(
-                new NoOpJobProvider(),
-                vacancyRepository,
-                NullLogger<ImportJobsUseCase>.Instance),
-            new EvaluateJobsBatchUseCase(
-                vacancyRepository,
-                evaluationRepository,
-                profileProvider,
-                matchingService,
-                evaluateJob,
-                NullLogger<EvaluateJobsBatchUseCase>.Instance),
+            new ImportAndEvaluateJobsUseCase(importJobs, evaluateJobsBatch),
+            evaluateJobsBatch,
             Options.Create(new ArbeitnowOptions { MaxPages = 3 }),
             NullLogger<IndexModel>.Instance)
         {

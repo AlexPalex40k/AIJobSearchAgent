@@ -209,6 +209,55 @@ List stored vacancies:
 Invoke-RestMethod 'http://localhost:5091/api/jobs?keyword=.NET&source=Arbeitnow&page=1&pageSize=20'
 ```
 
+Browse vacancies with their latest evaluation for the current candidate profile and matching configuration:
+
+```powershell
+$ranked = Invoke-RestMethod `
+  'http://localhost:5091/api/jobs/ranked?keyword=.NET&source=Arbeitnow&page=1&pageSize=20&sort=rating_desc'
+
+$ranked.items | Format-Table `
+  rating, evaluationStatus, title, company, location, publishedAt
+```
+
+`GET /api/jobs/ranked` supports these query parameters:
+
+- `keyword`: optional title or description search using the same token matching as the existing vacancy list.
+- `source`: optional case-insensitive provider filter.
+- `page`: page number, default `1`.
+- `pageSize`: items per page, default `20`, maximum `100`.
+- `sort`: `rating_desc` (default), `rating_asc`, or `newest`.
+
+Successfully rated vacancies appear before vacancies without a current rating for both rating sorts. Null ratings, including failed and timed-out evaluations, always appear last. Rating 1 vacancies remain visible.
+
+Example ranked response:
+
+```json
+{
+  "items": [
+    {
+      "vacancyId": "00000000-0000-0000-0000-000000000001",
+      "title": ".NET Backend Engineer",
+      "company": "Example Company",
+      "location": "Budapest or remote",
+      "isRemote": true,
+      "source": "Arbeitnow",
+      "url": "https://example.test/jobs/1",
+      "publishedAt": "2026-11-08T09:00:00Z",
+      "rating": 4,
+      "evaluationStatus": "succeeded",
+      "evaluatedAt": "2026-11-10T10:30:00Z",
+      "explanation": "The candidate matches the required backend skills but lacks one optional technology."
+    }
+  ],
+  "totalCount": 1,
+  "page": 1,
+  "pageSize": 20,
+  "totalPages": 1
+}
+```
+
+The ranked list treats an evaluation as current only when its candidate-profile hash, model name, and prompt version all match the current configuration. It selects the newest matching attempt using evaluation time and evaluation ID, so a latest failed or timed-out attempt is shown with its status and a null rating. Older results and results from other profiles, models, or prompt versions remain in history but are not presented as the current result. Reading this endpoint never invokes Ollama or creates an evaluation.
+
 Get a vacancy by its local ID:
 
 ```powershell
@@ -406,4 +455,4 @@ Additional limitations:
 - Results can change after model updates, model changes, profile edits, or prompt revisions; model name, profile hash, and prompt version are stored for traceability.
 - Long vacancy descriptions are truncated at the configured character limit before evaluation.
 - The prompt explicitly treats vacancy text as untrusted data, but prompt injection defenses are not an absolute security boundary.
-- Rating 1 evaluations remain in technical history. There is no recommended-vacancy endpoint in this iteration; any future recommendation query must exclude rating 1 without deleting vacancies or evaluation history.
+- Rating 1 evaluations remain in technical history and are included in ranked browsing. There is no recommended-vacancy endpoint in this iteration.

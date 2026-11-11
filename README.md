@@ -16,6 +16,7 @@ tests/
   AIJobSearchAgent.Tests/           Unit and SQLite integration tests
 tools/
   AIJobSearchAgent.Benchmarks/      Sequential local-LLM benchmark and offline comparison runner
+  AIJobSearchAgent.LinkedInSpike/   Isolated public LinkedIn page feasibility diagnostic
 benchmarks/                         Versioned synthetic dataset and benchmark-only candidate profile
 ```
 
@@ -446,6 +447,10 @@ dotnet test AIJobSearchAgent.sln
 ```
 
 Coverage includes Phase 1 collection behavior plus candidate profile validation, stable profile hashing, deterministic ratings, core-stack handling and aliases, conservative experience and language handling, Ollama structured-output deserialization and validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
+
+## LinkedIn feasibility spike
+
+The isolated diagnostic under `tools/AIJobSearchAgent.LinkedInSpike` compares direct public HTML inspection with a visible Selenium browser. It is not wired into `IJobProvider` and never writes to SQLite or calls Ollama. See the [spike README](tools/AIJobSearchAgent.LinkedInSpike/README.md) for commands, browser setup, safety restrictions, and interpretation guidance.
 
 ## Provider behavior and limitations
 

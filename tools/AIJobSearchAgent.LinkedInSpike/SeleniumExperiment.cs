@@ -305,8 +305,7 @@ public sealed class SeleniumExperiment(
         List<string> limitations,
         CancellationToken cancellationToken)
     {
-        var loginPopupDetected = false;
-        var allDetectedPopupsClosed = true;
+        var popupDiagnostics = new PopupDiagnosticTracker(limitations);
         var loginRestrictionEncountered = false;
         var descriptionsExtracted = 0;
         var cardSelectionFailures = 0;
@@ -325,12 +324,7 @@ public sealed class SeleniumExperiment(
             try
             {
                 var popupBeforeSelection = loginPopupHandler.TryCloseVisiblePopup(driver, cancellationToken);
-                RecordPopupResult(
-                    popupBeforeSelection,
-                    index,
-                    limitations,
-                    ref loginPopupDetected,
-                    ref allDetectedPopupsClosed);
+                popupDiagnostics.Record(popupBeforeSelection);
 
                 var card = FindMatchingCardWithScroll(driver, job, cancellationToken);
                 if (card is null)
@@ -355,12 +349,7 @@ public sealed class SeleniumExperiment(
                     exception is ElementClickInterceptedException or StaleElementReferenceException)
                 {
                     var obstructingPopup = loginPopupHandler.TryCloseVisiblePopup(driver, cancellationToken);
-                    RecordPopupResult(
-                        obstructingPopup,
-                        index,
-                        limitations,
-                        ref loginPopupDetected,
-                        ref allDetectedPopupsClosed);
+                    popupDiagnostics.Record(obstructingPopup);
                     card = FindMatchingCardWithScroll(driver, job, cancellationToken);
                     if (card is null)
                     {
@@ -405,12 +394,7 @@ public sealed class SeleniumExperiment(
                 }
 
                 var popupAfterSelection = loginPopupHandler.TryCloseVisiblePopup(driver, cancellationToken);
-                RecordPopupResult(
-                    popupAfterSelection,
-                    index,
-                    limitations,
-                    ref loginPopupDetected,
-                    ref allDetectedPopupsClosed);
+                popupDiagnostics.Record(popupAfterSelection);
 
                 var currentPageUrl = ReadCurrentUri(driver) ?? job.Url ?? new Uri("https://www.linkedin.com/");
                 var currentRestriction = restrictionDetector.DetectRenderedPage(
@@ -477,8 +461,8 @@ public sealed class SeleniumExperiment(
         return new DescriptionInspectionResult(
             blockingRestriction,
             loginRestrictionEncountered,
-            loginPopupDetected,
-            allDetectedPopupsClosed,
+            popupDiagnostics.Detected,
+            popupDiagnostics.AllDetectedPopupsClosed,
             descriptionsExtracted,
             cardSelectionFailures,
             detailPaneIdentityMismatches,
@@ -828,26 +812,6 @@ public sealed class SeleniumExperiment(
         var currentUrl = ReadCurrentUri(driver);
         return CountDomCards(driver) == 0 &&
                currentUrl?.AbsolutePath.Contains("/jobs/view/", StringComparison.OrdinalIgnoreCase) == true;
-    }
-
-    private static void RecordPopupResult(
-        LoginPopupResult popup,
-        int jobIndex,
-        List<string> limitations,
-        ref bool popupDetected,
-        ref bool allDetectedPopupsClosed)
-    {
-        if (!popup.Detected)
-        {
-            return;
-        }
-
-        popupDetected = true;
-        allDetectedPopupsClosed &= popup.Closed;
-        if (popup.Reason is not null)
-        {
-            limitations.Add($"Listing {jobIndex + 1}: {popup.Reason}");
-        }
     }
 
     private static WebDriverWait CreateWait(IWebDriver driver)

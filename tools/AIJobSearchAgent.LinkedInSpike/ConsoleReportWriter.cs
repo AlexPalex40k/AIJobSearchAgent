@@ -43,8 +43,12 @@ public static class ConsoleReportWriter
             Console.WriteLine($"Unique vacancies identified: {diagnostics.UniqueVacanciesIdentified}");
             Console.WriteLine($"Vacancies processed: {diagnostics.VacanciesSelectedForProcessing}");
             Console.WriteLine($"Vacancies extracted: {diagnostics.VacanciesSuccessfullyExtracted}");
-            Console.WriteLine($"Descriptions extracted: {report.UsableDescriptions}");
-            Console.WriteLine($"Descriptions unavailable: {report.IdentifiableVacancies - report.UsableDescriptions}");
+            Console.WriteLine($"Descriptions extracted from details pane: {diagnostics.DescriptionsExtractedFromDetailsPane}");
+            Console.WriteLine($"Descriptions unavailable: {diagnostics.DescriptionsUnavailable}");
+            Console.WriteLine($"Card selection failures: {diagnostics.CardSelectionFailures}");
+            Console.WriteLine($"Detail-pane identity mismatches: {diagnostics.DetailPaneIdentityMismatches}");
+            Console.WriteLine($"Individual vacancy-page navigations performed: {diagnostics.FullPageNavigationsPerformed}");
+            Console.WriteLine($"Total extraction duration: {diagnostics.TotalExtractionDurationMilliseconds} ms");
             Console.WriteLine($"Visible body text available: {YesNo(diagnostics.VisibleBodyTextAvailable)}");
             Console.WriteLine($"Visible verification challenge: {YesNo(diagnostics.VisibleVerificationChallenge)}");
             Console.WriteLine($"Active verification challenge: {YesNo(diagnostics.RealVerificationChallengeEncountered)}");

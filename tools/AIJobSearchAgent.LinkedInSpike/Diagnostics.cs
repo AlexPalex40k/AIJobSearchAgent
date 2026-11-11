@@ -46,6 +46,12 @@ public sealed record SeleniumPageDiagnostics(
     int UniqueVacanciesIdentified,
     int VacanciesSelectedForProcessing,
     int VacanciesSuccessfullyExtracted,
+    int DescriptionsExtractedFromDetailsPane,
+    int DescriptionsUnavailable,
+    int CardSelectionFailures,
+    int DetailPaneIdentityMismatches,
+    int FullPageNavigationsPerformed,
+    long TotalExtractionDurationMilliseconds,
     string VerificationDetectionReason);
 
 public sealed record DiagnosticReport(

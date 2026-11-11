@@ -477,6 +477,90 @@ Results can be partial because LinkedIn content is dynamic and may be limited by
 
 The standalone tool still compares direct public HTML inspection with the visible Selenium workflow. See the [spike README](tools/AIJobSearchAgent.LinkedInSpike/README.md) for its CLI, safety restrictions, and diagnostic interpretation.
 
+## Stateless LinkedIn search and evaluation
+
+`POST /api/search/evaluate` performs the first complete in-memory workflow: it searches LinkedIn, normalizes and deduplicates the returned vacancies, evaluates vacancies that have descriptions with the configured local Ollama model, and returns ranked results. The caller supplies the candidate profile in every request. This workflow does not read `candidate-profile.json`, use a repository, or save the profile, vacancies, or evaluations to SQLite.
+
+The endpoint is available only in the Development environment and accepts at most 10 vacancies. Chrome or Chromium and the LinkedIn provider setup described above are required. Ollama must also be running with the model configured under `Ollama`; no live LinkedIn or Ollama access is used by automated tests.
+
+```powershell
+$body = @{
+  jobTitle = 'Senior .NET Developer'
+  location = 'Serbia'
+  publishedWithinDays = 7
+  maxJobs = 10
+  candidateProfile = @{
+    professionalTitle = 'Senior .NET Developer'
+    yearsProfessionalExperience = 7
+    technicalSkills = @(
+      @{ name = 'C#'; level = 'Advanced' }
+      @{ name = '.NET'; level = 'Advanced' }
+      @{ name = 'ASP.NET Core'; level = 'Advanced' }
+      @{ name = 'SQL'; level = 'Advanced' }
+    )
+    spokenLanguages = @(
+      @{ language = 'English'; level = 'B2' }
+    )
+  }
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri 'http://localhost:5091/api/search/evaluate' `
+  -ContentType 'application/json' `
+  -Body $body
+```
+
+`jobTitle` and `location` are required and limited to 100 characters. `publishedWithinDays` accepts `1`, `7`, or `null`; `maxJobs` accepts `1` through `10` and defaults to `10`. A candidate profile requires a professional title, non-negative total professional experience, and at least one named technical skill. Spoken-language levels accept `A1`, `A2`, `B1`, `B2`, `C1`, `C2`, or `native`.
+
+Example response shape:
+
+```json
+{
+  "totalVacancies": 2,
+  "successfullyEvaluated": 1,
+  "failedEvaluations": 0,
+  "notEvaluated": 1,
+  "isPartial": true,
+  "isBlocked": false,
+  "sourceLimitations": ["One description was unavailable."],
+  "results": [
+    {
+      "source": "LinkedIn",
+      "externalId": "4487735427",
+      "title": "Senior .NET Developer",
+      "company": "Example Company",
+      "location": "Serbia",
+      "originalUrl": "https://www.linkedin.com/jobs/view/4487735427",
+      "publishedAt": "2026-11-10T09:00:00Z",
+      "rating": 4,
+      "evaluationStatus": "succeeded",
+      "explanation": "The required .NET skills match, with one optional skill missing.",
+      "matchedSkills": ["C#", ".NET", "ASP.NET Core"],
+      "missingRequiredSkills": [],
+      "missingOptionalSkills": ["Kubernetes"]
+    },
+    {
+      "source": "LinkedIn",
+      "externalId": "4487735428",
+      "title": ".NET Developer",
+      "company": "Another Company",
+      "location": "Serbia",
+      "originalUrl": "https://www.linkedin.com/jobs/view/4487735428",
+      "publishedAt": null,
+      "rating": null,
+      "evaluationStatus": "notEvaluated",
+      "explanation": null,
+      "matchedSkills": [],
+      "missingRequiredSkills": [],
+      "missingOptionalSkills": []
+    }
+  ]
+}
+```
+
+Vacancies are evaluated sequentially to avoid concurrent local-model load. Consequently, a single request can take roughly the sum of the LinkedIn browser search time and every individual Ollama evaluation. A missing description remains in the response with `notEvaluated` and no invented rating; an individual model failure is reported as `failed` or `timedOut` without discarding other results. Successfully evaluated vacancies are ranked by rating and publication date, while null ratings appear last. Source access restrictions and partial extraction remain visible through `isPartial`, `isBlocked`, and `sourceLimitations`.
+
 ## Provider behavior and limitations
 
 The implementation uses Arbeitnow's documented free endpoint: `https://www.arbeitnow.com/api/job-board-api?page=1`. According to the [official Arbeitnow API documentation](https://blog.arbeitnow.com/blog/job-board-api), it requires no API key. The public documentation does not describe a keyword query parameter, so the client fetches only the requested/configured number of pages and filters title and description locally. This means a matching vacancy beyond that page window is not discovered.

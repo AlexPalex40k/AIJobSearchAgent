@@ -13,5 +13,6 @@ public static class DependencyInjection
         .AddScoped<GetRankedJobsUseCase>()
         .AddScoped<EvaluateJobUseCase>()
         .AddScoped<EvaluateJobsBatchUseCase>()
+        .AddScoped<SearchAndEvaluateJobsUseCase>()
         .AddScoped<GetJobEvaluationsUseCase>();
 }

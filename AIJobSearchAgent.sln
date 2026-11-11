@@ -18,6 +18,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIJobSearchAgent.LinkedInSp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIJobSearchAgent.LinkedInSpike.Tests", "tests\AIJobSearchAgent.LinkedInSpike.Tests\AIJobSearchAgent.LinkedInSpike.Tests.csproj", "{48DD7048-CECF-4E01-9A37-7638BA9275E1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIJobSearchAgent.LinkedIn", "src\AIJobSearchAgent.LinkedIn\AIJobSearchAgent.LinkedIn.csproj", "{B1C7437D-D04D-4E76-9B42-1F6634070F2A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -56,5 +58,9 @@ Global
 		{48DD7048-CECF-4E01-9A37-7638BA9275E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{48DD7048-CECF-4E01-9A37-7638BA9275E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{48DD7048-CECF-4E01-9A37-7638BA9275E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B1C7437D-D04D-4E76-9B42-1F6634070F2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B1C7437D-D04D-4E76-9B42-1F6634070F2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B1C7437D-D04D-4E76-9B42-1F6634070F2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B1C7437D-D04D-4E76-9B42-1F6634070F2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

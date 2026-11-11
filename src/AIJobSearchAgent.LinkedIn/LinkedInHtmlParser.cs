@@ -368,7 +368,7 @@ public sealed partial class LinkedInHtmlParser
         return $"title-company:{job.Title?.Trim()}|{job.Company?.Trim()}";
     }
 
-    internal static string? TryGetLinkedInJobId(Uri url)
+    public static string? TryGetLinkedInJobId(Uri url)
     {
         foreach (var pair in url.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
         {

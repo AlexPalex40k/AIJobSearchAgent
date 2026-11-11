@@ -33,7 +33,7 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(4, result.Rating);
         Assert.Equal(["C#", "ASP.NET Core"], result.MatchedSkills);
         Assert.Equal(["Docker"], result.MissingOptionalSkills);
-        Assert.Equal("job-match-simple-v4", result.PromptVersion);
+        Assert.Equal("job-match-simple-v5", result.PromptVersion);
         Assert.NotNull(capturedRequest);
 
         using var requestJson = JsonDocument.Parse(capturedRequest);
@@ -85,6 +85,37 @@ public sealed class OllamaJobMatchingServiceTests
         Assert.Equal(5, result.Rating);
         Assert.Equal(["C Sharp", "ASP Net Core", "Entity Framework Core"], result.MatchedSkills);
         Assert.DoesNotContain("Ignored extracted", result.Explanation);
+    }
+
+    [Fact]
+    public async Task EvaluateWithDiagnosticsAsync_reports_raw_verified_reclassified_and_normalized_data()
+    {
+        using var httpClient = CreateTechnicalResponseClient(
+            ["C#", "Docker", "Angular"],
+            []);
+
+        var diagnosticResult = await CreateService(httpClient).EvaluateWithDiagnosticsAsync(
+            CreateVacancy(
+                "Build C# services. Angular is optional. Our infrastructure includes Docker."),
+            CreateProfile("C#"),
+            CancellationToken.None);
+
+        var diagnostics = diagnosticResult.Diagnostics;
+        Assert.Equal(["C#", "Docker", "Angular"], diagnostics.RawRequiredSkills);
+        Assert.Equal(["C#"], diagnostics.VerifiedRequiredSkills);
+        Assert.Equal(["Angular"], diagnostics.VerifiedOptionalSkills);
+        Assert.Equal(["Docker"], diagnostics.RejectedRequiredSkills);
+        Assert.Contains(
+            diagnostics.ReclassifiedSkills,
+            change => change.Skill == "Angular" &&
+                change.OriginalClassification == "Required" &&
+                change.VerifiedClassification == "Optional");
+        var normalizedMatch = Assert.Single(diagnostics.NormalizedSkillMatches);
+        Assert.Equal("C#", normalizedMatch.RequirementSkill);
+        Assert.Equal("C#", normalizedMatch.CandidateSkill);
+        Assert.Equal("csharp", normalizedMatch.NormalizedRequirement);
+        Assert.Equal(4, diagnostics.FinalRating);
+        Assert.Equal(diagnosticResult.Result.Explanation, diagnostics.Explanation);
     }
 
     [Fact]
@@ -254,19 +285,19 @@ public sealed class OllamaJobMatchingServiceTests
     public static TheoryData<string, IReadOnlyList<string>, IReadOnlyList<string>, IReadOnlyList<string>> CoreStackMismatchIntegrationCases => new()
     {
         {
-            "Python, FastAPI, and Docker are required.",
+            "Build production services in Python and FastAPI. Docker is a required supporting tool.",
             ["Python", "FastAPI", "Docker"],
             ["Python", "FastAPI"],
             ["Docker"]
         },
         {
-            "Java, Spring Boot, SQL, and Docker are required.",
+            "Develop Java services with Spring Boot. SQL and Docker are required supporting tools.",
             ["Java", "Spring Boot", "SQL", "Docker"],
             ["Java", "Spring Boot"],
             ["SQL", "Docker"]
         },
         {
-            "C#, WPF, XAML, and MVVM are required.",
+            "Build Windows desktop interfaces with WPF, XAML, and MVVM. C# is required.",
             ["C#", "WPF", "XAML", "MVVM"],
             ["WPF", "XAML", "MVVM"],
             ["C#"]

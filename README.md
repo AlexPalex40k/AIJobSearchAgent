@@ -130,7 +130,7 @@ The endpoint, model, timeout, and maximum vacancy-description size are configura
 
 The integration calls Ollama's `/api/chat` endpoint with streaming disabled, temperature 0, and a JSON Schema through the `format` field. Ollama receives only the untrusted vacancy title and bounded description. It extracts required and optional technologies, a small subset of role-defining core required technologies, whether the requirements are clear, an optional overall experience minimum, and mandatory languages. Before scoring, each extracted technology must also be mentioned in that bounded description; the title alone is not evidence. Unsupported extractions are excluded from required and optional skill comparison and named in the deterministic explanation. The candidate profile is never included in the LLM request; rating and skill comparison happen deterministically in C#. No candidate or vacancy data is sent to a paid or cloud API.
 
-Matching version `job-match-simple-v4` uses these rules:
+Matching version `job-match-simple-v5` uses these rules:
 
 - all required and optional technical skills match: rating 5;
 - all required skills match but an optional skill is missing: rating 4;
@@ -139,11 +139,11 @@ Matching version `job-match-simple-v4` uses these rules:
 - none of the verified role-defining core required skills match: rating 1, even if generic supporting technologies match;
 - none of a clear required technical stack matches: rating 1.
 
-Explicit aliases cover common spellings of C#, EF Core, ASP.NET Core, and .NET for both candidate comparison and description verification. Description checks are token-aware: they do not broaden SQL into a specific database, Java into JavaScript, or a platform into all of its frameworks. A confirmed language-level shortfall caps the rating at 3. If a mandatory language is absent from the candidate profile, capability remains unknown rather than being called a mismatch, but the rating is also capped at 3 until that requirement is verified. An explicit overall-experience shortfall caps the rating at 4 and is never interpreted as technology-specific experience.
+Explicit aliases cover common spellings of C#, EF Core, ASP.NET Core, SQL Server, .NET Core, and .NET Framework for both candidate comparison and description verification. Version matching is directional: a candidate's explicit `.NET Framework 4.8` can satisfy `.NET Framework 4.7/4.8`, while generic `.NET Framework` cannot prove version 4.8. Generic `.NET`, `.NET Core`, and `.NET Framework` remain distinct, as do SQL and SQL Server. Description checks are token-aware and do not broaden Java into JavaScript, C into C++ or C#, Azure into individual Azure services, or Docker into Kubernetes. A confirmed language-level shortfall caps the rating at 3. If a mandatory language is absent from the candidate profile, capability remains unknown rather than being called a mismatch, but the rating is also capped at 3 until that requirement is verified. An explicit overall-experience shortfall caps the rating at 4 and is never interpreted as technology-specific experience.
 
-Technical classification is corrected only when the bounded description gives explicit evidence. Markers such as required, mandatory, or essential move an extracted technology to required; optional, preferred, useful, bonus, or nice-to-have move it to optional. Technologies explicitly described as irrelevant, not required, not used, or outside the role are discarded. Clear non-technology outputs such as year-count experience phrases and generic practices such as code review are also discarded. Without an explicit marker, the verifier preserves Ollama's classification rather than treating every mentioned technology as mandatory. Core-responsibility implications therefore remain model judgments, and the narrow non-technology exclusions are not a comprehensive professional-practice dictionary.
+Technical classification now requires evidence from the bounded description rather than trusting a model category for a mere mention. Requirements and preferred-section headings, explicit required/optional markers, and responsibilities that necessarily use a technology are accepted evidence. Company-stack descriptions, examples, possible technologies, past-project context, negative statements, and generic practices such as code review or SOLID principles are rejected. This remains deliberately conservative: unusual prose can still require human review, and the verifier does not use a large hardcoded technology dictionary.
 
-`coreRequiredSkills` identifies only technologies that define the role's main specialization or essential technical purpose, such as Python and FastAPI for a Python backend role. It is deterministically reduced to a normalized, duplicate-free subset of the verified required skills; an invented core skill or one supported only by the title is discarded. SQL and Docker are not considered role-defining by default. When no reliable core subset remains, the existing required/optional rating rules apply unchanged.
+`coreRequiredSkills` identifies only technologies that define the role's main specialization or essential technical purpose, such as Python and FastAPI for a Python backend role. It is deterministically reduced to a normalized, duplicate-free subset of verified required skills that also have role-defining responsibility evidence; an invented core skill, a supporting-tool mention, or one supported only by the title is discarded. When no reliable core subset remains, the existing required/optional rating rules apply unchanged.
 
 Mandatory languages are also checked against the bounded vacancy description before scoring. A language is retained only when the text connects it to an explicit requirement; background references such as an English-speaking team or English documentation are not enough. CEFR levels are retained only when the exact level is stated with the requirement. `native` is retained only when native proficiency is explicitly required. If the language is mandatory but Ollama returns an unsupported level—for example `native` for “professional English”—the language remains required with a `null` minimum level.
 
@@ -288,7 +288,7 @@ Example successful response:
   "jobVacancyId": "00000000-0000-0000-0000-000000000000",
   "profileHash": "4b7c...64-lowercase-hex-characters...",
   "modelName": "qwen3:1.7b",
-  "promptVersion": "job-match-simple-v4",
+  "promptVersion": "job-match-simple-v5",
   "rating": 4,
   "matchedSkills": ["C#", "ASP.NET Core"],
   "missingRequiredSkills": [],
@@ -364,13 +364,14 @@ The committed inputs are intentionally synthetic:
 
 - `benchmarks/dataset.v1.json` preserves the 18 fictional vacancies and approved labels from the earlier rating system. It is retained unchanged for historical reproducibility.
 - `benchmarks/dataset.simple.v3.json` contains the same 18 vacancy identities and descriptions with independently reviewed, approved reference labels for `job-match-simple-v3`.
+- `benchmarks/dataset.matching-quality.v5.json` is a focused set of 10 synthetic, provisional cases covering .NET backend and desktop work, cloud platforms, Python, Java, long contextual technology lists, explicit optional skills, ambiguous descriptions, composite versions, and similar but non-equivalent technologies.
 - `benchmarks/candidate-profile.synthetic.json` is a benchmark-only profile and does not read or contain the private `candidate-profile.json`.
 
-The 18 approved ratings in `dataset.v1.json` remain historical labels and are not authoritative for simplified matching. The independently reviewed v3 dataset declares `"datasetVersion": "2.0"` and `"matchingVersion": "job-match-simple-v3"`; all 18 cases have approved ratings and reviewer metadata. It remains unchanged for v3 reproducibility. Because the current prompt is `job-match-simple-v4`, runs against this v3 dataset are marked reference-label incompatible and do not report accuracy or MAE; they still report predictions, failures, distributions, and latency. A future v4 reference dataset requires independent review rather than copying model predictions.
+The 18 approved ratings in `dataset.v1.json` remain historical labels and are not authoritative for simplified matching. The independently reviewed v3 dataset declares `"datasetVersion": "2.0"` and `"matchingVersion": "job-match-simple-v3"`; all 18 cases have approved ratings and reviewer metadata. It remains unchanged for v3 reproducibility. Because the current prompt is `job-match-simple-v5`, runs against this v3 dataset are marked reference-label incompatible and do not report accuracy or MAE; they still report predictions, failures, distributions, and latency. The focused v5 dataset uses provisional labels, so it supports investigation but does not establish accuracy until those labels receive independent review.
 
 Synthetic cases deliberately omit `vacancyUrl`: their companies and vacancies do not exist, so the dataset must not invent links that appear to identify external listings. A future benchmark case based on a real vacancy may set `vacancyUrl` to its actual absolute HTTP or HTTPS source URL. Dataset validation rejects relative, malformed, and non-HTTP(S) URLs. Because external listings can change or disappear, the dataset remains a reviewed snapshot rather than fetching live vacancy content during a run.
 
-Generated files are written under the ignored `benchmarks/results/` directory. Each run creates a new JSON file containing dataset and profile hashes, model and prompt versions, aggregate metrics, individual predictions, latency, and safe failure information. Every new case result includes its stable case ID plus the evaluated vacancy title and description, and includes the source URL when the dataset supplied one. This makes the evaluated vacancy identifiable even when a real URL is absent or later expires. Raw prompts and personal data are not stored.
+Generated files are written under the ignored `benchmarks/results/` directory. Each run creates a new JSON file containing dataset and profile hashes, model and prompt versions, aggregate metrics, individual predictions, latency, and safe failure information. Successful v5 runs also include structured matching diagnostics: raw and verified requirement categories, rejected and reclassified skills, normalized candidate matches, and the final rating and explanation. Diagnostics do not serialize the complete candidate profile or raw prompt; they include only candidate skill names involved in confirmed matches. Every case result includes its stable case ID plus the evaluated vacancy title and description, and includes the source URL when the dataset supplied one.
 
 ### Approved simplified reference labels
 
@@ -388,12 +389,14 @@ Future label changes must be reviewed independently of model predictions. Update
 
 ### Run an experiment
 
-Start Ollama, pull the model, and run the preserved v3 dataset as a v4 regression experiment. The report will mark its approved labels incompatible with the current matching version:
+Start Ollama, pull the model, and run the focused v5 quality dataset. Its labels are provisional, so aggregate accuracy metrics are intentionally excluded:
 
 ```powershell
 ollama pull qwen3:4b
-dotnet run --project tools/AIJobSearchAgent.Benchmarks -- --model qwen3:4b --dataset benchmarks/dataset.simple.v3.json
+dotnet run --project tools/AIJobSearchAgent.Benchmarks -- --model qwen3:4b --dataset benchmarks/dataset.matching-quality.v5.json
 ```
+
+The preserved v3 dataset can still be run as a cross-version regression experiment; its approved labels are reported as incompatible with v5 rather than silently reused.
 
 Available options are:
 

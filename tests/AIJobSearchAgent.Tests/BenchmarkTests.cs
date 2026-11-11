@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AIJobSearchAgent.Application.Abstractions;
 using AIJobSearchAgent.Application.Models;
+using AIJobSearchAgent.Application.Services;
 using AIJobSearchAgent.Benchmarks;
 using AIJobSearchAgent.Domain.Entities;
 using AIJobSearchAgent.Domain.Profiles;
@@ -77,6 +78,38 @@ public sealed class BenchmarkTests
             Assert.False(string.IsNullOrWhiteSpace(simplifiedCase.ReviewedBy));
             Assert.NotNull(simplifiedCase.ReviewedAt);
         }
+    }
+
+    [Fact]
+    public async Task MatchingQualityV5Dataset_is_synthetic_provisional_and_covers_regression_categories()
+    {
+        var solutionRoot = FindSolutionRoot();
+        var dataset = await BenchmarkDatasetLoader.LoadAsync(
+            Path.Combine(solutionRoot, "benchmarks", "dataset.matching-quality.v5.json"),
+            CancellationToken.None);
+
+        Assert.Equal("matching-quality-1.0", dataset.Dataset.DatasetVersion);
+        Assert.Equal("job-match-simple-v5", dataset.Dataset.MatchingVersion);
+        Assert.Equal(10, dataset.Dataset.Cases.Count);
+        Assert.All(dataset.Dataset.Cases, benchmarkCase =>
+        {
+            Assert.Equal(ReferenceLabelStatus.Provisional, benchmarkCase.LabelStatus);
+            Assert.Contains("synthetic", benchmarkCase.Tags);
+            Assert.Contains("quality-v5", benchmarkCase.Tags);
+            Assert.Null(benchmarkCase.VacancyUrl);
+        });
+
+        var allTags = dataset.Dataset.Cases.SelectMany(benchmarkCase => benchmarkCase.Tags).ToHashSet();
+        Assert.Contains("backend", allTags);
+        Assert.Contains("desktop", allTags);
+        Assert.Contains("platform", allTags);
+        Assert.Contains("python", allTags);
+        Assert.Contains("java", allTags);
+        Assert.Contains("long-list", allTags);
+        Assert.Contains("optional-skill", allTags);
+        Assert.Contains("ambiguous", allTags);
+        Assert.Contains("composite", allTags);
+        Assert.Contains("non-equivalent", allTags);
     }
 
     [Fact]
@@ -292,7 +325,8 @@ public sealed class BenchmarkTests
                 "model-a",
                 "prompt-v1",
                 4,
-                vacancyUrl);
+                vacancyUrl,
+                CreateDiagnostics());
             var secondResult = CreateRun("dataset-hash", "profile-hash", "model-a", "prompt-v1", 4);
 
             var firstPath = await BenchmarkResultStore.SaveAsync(result, directory, CancellationToken.None);
@@ -307,6 +341,9 @@ public sealed class BenchmarkTests
             Assert.Equal(".NET Engineer", caseResult.VacancyTitle);
             Assert.Equal("Build C# services.", caseResult.VacancyDescription);
             Assert.Equal(vacancyUrl, caseResult.VacancyUrl);
+            Assert.Equal(
+                ["C#"],
+                Assert.IsType<JobMatchingDiagnostics>(caseResult.MatchingDiagnostics).RawRequiredSkills);
         }
         finally
         {
@@ -453,6 +490,55 @@ public sealed class BenchmarkTests
     }
 
     [Fact]
+    public async Task Runner_preserves_structured_matching_diagnostics_when_available()
+    {
+        var diagnostics = new JobMatchingDiagnostics(
+            ["C#"],
+            [],
+            ["C#"],
+            ["C#"],
+            [],
+            ["C#"],
+            [],
+            [],
+            [],
+            [],
+            [new NormalizedSkillMatch("C#", "C#", "csharp", "csharp")],
+            5,
+            "Excellent match.");
+        var service = new DiagnosticJobMatchingService(new JobMatchWithDiagnosticsResult(
+            new JobMatchResult(
+                5,
+                ["C#"],
+                [],
+                [],
+                "Excellent match.",
+                "model-a",
+                JobMatchingPrompt.Version,
+                DateTimeOffset.UtcNow),
+            diagnostics));
+        var runner = new BenchmarkRunner(service);
+
+        var result = await runner.RunAsync(
+            new BenchmarkDatasetSnapshot(
+                new BenchmarkDataset
+                {
+                    DatasetVersion = "test-v1",
+                    MatchingVersion = JobMatchingPrompt.Version,
+                    Cases = [CreateCase("diagnostic-case")]
+                },
+                "dataset-hash"),
+            new CandidateProfileSnapshot(CreateProfile(), new string('0', 64)),
+            "model-a",
+            null,
+            CancellationToken.None);
+
+        Assert.Same(diagnostics, Assert.Single(result.CaseResults).MatchingDiagnostics);
+        Assert.Equal(1, service.DiagnosticCallCount);
+        Assert.Equal(0, service.StandardCallCount);
+    }
+
+    [Fact]
     public void CommandLine_UsesSelectedModel()
     {
         var options = BenchmarkCommandLine.Parse(["--model", "qwen3:8b"]);
@@ -498,7 +584,8 @@ public sealed class BenchmarkTests
         ReferenceLabelStatus labelStatus,
         EvaluationStatus status = EvaluationStatus.Succeeded,
         double latencyMilliseconds = 10,
-        string? vacancyUrl = null) => new()
+        string? vacancyUrl = null,
+        JobMatchingDiagnostics? matchingDiagnostics = null) => new()
         {
             CaseId = caseId,
             VacancyTitle = ".NET Engineer",
@@ -515,6 +602,7 @@ public sealed class BenchmarkTests
             MatchedSkills = [],
             MissingRequiredSkills = [],
             MissingOptionalSkills = [],
+            MatchingDiagnostics = matchingDiagnostics,
             LatencyMilliseconds = latencyMilliseconds,
             ErrorMessage = status == EvaluationStatus.Succeeded ? null : "Safe error"
         };
@@ -525,14 +613,16 @@ public sealed class BenchmarkTests
         string model,
         string promptVersion,
         int rating,
-        string? vacancyUrl = null)
+        string? vacancyUrl = null,
+        JobMatchingDiagnostics? matchingDiagnostics = null)
     {
         var caseResult = CreateResult(
             "case-one",
             4,
             rating,
             ReferenceLabelStatus.Approved,
-            vacancyUrl: vacancyUrl);
+            vacancyUrl: vacancyUrl,
+            matchingDiagnostics: matchingDiagnostics);
         return new BenchmarkRunResult
         {
             SchemaVersion = BenchmarkRunResult.CurrentSchemaVersion,
@@ -554,6 +644,21 @@ public sealed class BenchmarkTests
         YearsProfessionalExperience = 5,
         TechnicalSkills = [new CandidateSkill { Name = "C#" }]
     };
+
+    private static JobMatchingDiagnostics CreateDiagnostics() => new(
+        ["C#"],
+        [],
+        ["C#"],
+        ["C#"],
+        [],
+        ["C#"],
+        [],
+        [],
+        [],
+        [],
+        [new NormalizedSkillMatch("C#", "C#", "csharp", "csharp")],
+        5,
+        "Excellent match.");
 
     private static string FindSolutionRoot()
     {
@@ -583,5 +688,32 @@ public sealed class BenchmarkTests
             JobVacancy vacancy,
             CandidateProfile profile,
             CancellationToken cancellationToken) => evaluate(vacancy, profile, cancellationToken);
+    }
+
+    private sealed class DiagnosticJobMatchingService(JobMatchWithDiagnosticsResult result)
+        : IJobMatchingService, IJobMatchingDiagnosticsService
+    {
+        public string ModelName => "model-a";
+        public string PromptVersion => JobMatchingPrompt.Version;
+        public int StandardCallCount { get; private set; }
+        public int DiagnosticCallCount { get; private set; }
+
+        public Task<JobMatchResult> EvaluateAsync(
+            JobVacancy vacancy,
+            CandidateProfile profile,
+            CancellationToken cancellationToken)
+        {
+            StandardCallCount++;
+            return Task.FromResult(result.Result);
+        }
+
+        public Task<JobMatchWithDiagnosticsResult> EvaluateWithDiagnosticsAsync(
+            JobVacancy vacancy,
+            CandidateProfile profile,
+            CancellationToken cancellationToken)
+        {
+            DiagnosticCallCount++;
+            return Task.FromResult(result);
+        }
     }
 }

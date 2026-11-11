@@ -1,0 +1,261 @@
+﻿{
+    "totalVacancies":  10,
+    "successfullyEvaluated":  10,
+    "failedEvaluations":  0,
+    "notEvaluated":  0,
+    "isPartial":  false,
+    "isBlocked":  false,
+    "sourceLimitations":  [
+                              "A visible login popup could not be closed; extraction continued for readable job cards.",
+                              "CAPTCHA-related markup was found, but no active visible challenge was detected."
+                          ],
+    "results":  [
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4489008644",
+                        "title":  "Engineering Lead - .NET \u0026 Angular",
+                        "company":  "Capaciteam",
+                        "location":  "Belgrade, Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4489008644",
+                        "publishedAt":  "2026-11-11T00:00:00+00:00",
+                        "rating":  4,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Excellent technical match: all required and optional technologies are listed in the candidate profile. Overall professional experience is 7 years, below the required 8 years; rating is capped at 4. Ignored extracted technical skills not supported as requirements by the vacancy description (required: C#, Angular, TypeScript, SQL Server, Azure (+1 more)). Did not treat these extracted skills as role-defining without core-responsibility evidence: C#, Angular, ASP.NET Core, TypeScript.",
+                        "matchedSkills":  [
+                                              "ASP.NET Core"
+                                          ],
+                        "missingRequiredSkills":  [
+
+                                                  ],
+                        "missingOptionalSkills":  [
+
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4489467374",
+                        "title":  "Senior Software Engineer",
+                        "company":  "NCR Voyix",
+                        "location":  "Belgrade, Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4489467374",
+                        "publishedAt":  "2026-11-10T00:00:00+00:00",
+                        "rating":  3,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Partial match: matched required technologies: C#; required technologies not listed in the candidate profile: C++, Azure, Kubernetes, Docker, Microservices, Event-driven architectures. Ignored extracted technical skills not supported as requirements by the vacancy description (required: Microsoft Entra ID (Azure AD), Okta, OAuth 2.0, OpenID Connect (OIDC), SAML 2.0 (+15 more)). Did not treat these extracted skills as role-defining without core-responsibility evidence: Docker, Microsoft Entra ID (Azure AD), Okta, OAuth 2.0, OpenID Connect (OIDC) (+4 more).",
+                        "matchedSkills":  [
+                                              "C#"
+                                          ],
+                        "missingRequiredSkills":  [
+                                                      "C++",
+                                                      "Azure",
+                                                      "Kubernetes",
+                                                      "Docker",
+                                                      "Microservices",
+                                                      "Event-driven architectures"
+                                                  ],
+                        "missingOptionalSkills":  [
+
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4427965318",
+                        "title":  "Senior Microsoft Dynamics 365 Developer",
+                        "company":  "Proxify",
+                        "location":  "Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4427965318",
+                        "publishedAt":  "2026-11-09T00:00:00+00:00",
+                        "rating":  3,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Partial match: matched required technologies: C#, SQL; required technologies not listed in the candidate profile: X++, OData, Azure Integration Services, Azure Functions, API Management, Azure DevOps. Ignored extracted technical skills not supported as requirements by the vacancy description (required: JavaScript/TypeScript, REST, SOAP, Power Apps, Power Automate (+1 more)). Did not treat these extracted skills as role-defining without core-responsibility evidence: JavaScript/TypeScript, Dataverse.",
+                        "matchedSkills":  [
+                                              "C#",
+                                              "SQL"
+                                          ],
+                        "missingRequiredSkills":  [
+                                                      "X++",
+                                                      "OData",
+                                                      "Azure Integration Services",
+                                                      "Azure Functions",
+                                                      "API Management",
+                                                      "Azure DevOps"
+                                                  ],
+                        "missingOptionalSkills":  [
+
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4489112076",
+                        "title":  "Senior Engineer",
+                        "company":  "Numerator",
+                        "location":  "Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4489112076",
+                        "publishedAt":  "2026-11-09T00:00:00+00:00",
+                        "rating":  3,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Partial match: matched required technologies: C#; required technologies not listed in the candidate profile: .NET Core. Ignored extracted technical skills not supported as requirements by the vacancy description (required: ASP.NET Core, Azure App Services, Azure Functions, Azure SQL, RESTful APIs (+12 more)). Reclassified explicit requirement evidence: JavaScript (Required to Optional), Testing frameworks (Required to Optional). Did not treat these extracted skills as role-defining without core-responsibility evidence: Azure App Services, Azure Functions, Azure SQL, RESTful APIs, Microservices (+2 more).",
+                        "matchedSkills":  [
+                                              "C#"
+                                          ],
+                        "missingRequiredSkills":  [
+                                                      ".NET Core"
+                                                  ],
+                        "missingOptionalSkills":  [
+                                                      "JavaScript",
+                                                      "Testing frameworks",
+                                                      "JavaScript/TypeScript",
+                                                      "React",
+                                                      "Angular",
+                                                      "Python",
+                                                      "Mobile app development",
+                                                      "Selenium",
+                                                      "Supervising tools"
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4485834814",
+                        "title":  "Engineering Manager",
+                        "company":  "Paychex",
+                        "location":  "Belgrade, Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4485834814",
+                        "publishedAt":  "2026-11-05T00:00:00+00:00",
+                        "rating":  3,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Partial match: matched required technologies: C#; required technologies not listed in the candidate profile: Microsoft Azure. Did not treat these extracted skills as role-defining without core-responsibility evidence: C#, Microsoft Azure.",
+                        "matchedSkills":  [
+                                              "C#"
+                                          ],
+                        "missingRequiredSkills":  [
+                                                      "Microsoft Azure"
+                                                  ],
+                        "missingOptionalSkills":  [
+                                                      "AI-assisted software development tools"
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4487485212",
+                        "title":  "Hyperautomation Engineer III",
+                        "company":  "NCR Voyix",
+                        "location":  "Belgrade, Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4487485212",
+                        "publishedAt":  "2026-11-10T00:00:00+00:00",
+                        "rating":  2,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Insufficient information: the vacancy does not provide clear required technical skills for reliable matching. Reclassified explicit requirement evidence: UiPath (Required to Optional), Power Automate Cloud/Desktop (Required to Optional), Azure AI Foundry (Required to Optional), Agentic AI (Required to Optional), Azure Functions (Required to Optional) (+3 more). Did not treat these extracted skills as role-defining without core-responsibility evidence: UiPath, Power Automate Cloud/Desktop, Azure AI Foundry, Agentic AI, Azure Functions (+3 more).",
+                        "matchedSkills":  [
+
+                                          ],
+                        "missingRequiredSkills":  [
+
+                                                  ],
+                        "missingOptionalSkills":  [
+                                                      "UiPath",
+                                                      "Power Automate Cloud/Desktop",
+                                                      "Azure AI Foundry",
+                                                      "Agentic AI",
+                                                      "Azure Functions",
+                                                      "Logic Apps",
+                                                      "Databricks",
+                                                      "ServiceNow Automation Engine"
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4486963574",
+                        "title":  "Programmer",
+                        "company":  "ProCredit Bank a.d Belgrade",
+                        "location":  "Belgrade Metropolitan Area",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4486963574",
+                        "publishedAt":  "2026-11-06T00:00:00+00:00",
+                        "rating":  2,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Insufficient information: the vacancy does not provide clear required technical skills for reliable matching. Ignored extracted technical skills not supported as requirements by the vacancy description (required: MS SQL, SSRS, SSIS, SSAS, .NET/C# (+4 more); optional: low-code/no-code platforms, GIT, database management, data formats). Did not treat these extracted skills as role-defining without core-responsibility evidence: MS SQL, .NET/C#, REST API, WCF, JSON (+1 more).",
+                        "matchedSkills":  [
+
+                                          ],
+                        "missingRequiredSkills":  [
+
+                                                  ],
+                        "missingOptionalSkills":  [
+
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4487946669",
+                        "title":  "Senior Software Engineer",
+                        "company":  "Roko Labs",
+                        "location":  "Belgrade, Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4487946669",
+                        "publishedAt":  "2026-11-09T00:00:00+00:00",
+                        "rating":  1,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Not suitable: none of the role-defining core technologies are listed in the candidate profile. Core required technologies not listed: Databases, Cloud infrastructure, DevOps. Ignored extracted technical skills not supported as requirements by the vacancy description (required: C#, Python, Node.js). Did not treat these extracted skills as role-defining without core-responsibility evidence: Python.",
+                        "matchedSkills":  [
+
+                                          ],
+                        "missingRequiredSkills":  [
+                                                      "Java",
+                                                      "React",
+                                                      "Databases",
+                                                      "Cloud infrastructure",
+                                                      "DevOps"
+                                                  ],
+                        "missingOptionalSkills":  [
+
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4488194223",
+                        "title":  "Senior/Staff Software Engineer (Platform)",
+                        "company":  "Renesas Electronics",
+                        "location":  "Belgrade, Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4488194223",
+                        "publishedAt":  "2026-11-06T00:00:00+00:00",
+                        "rating":  1,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Not suitable: none of the required technologies are listed in the candidate profile. Required technologies not listed: ElasticSearch, OpenSearch. Ignored extracted technical skills not supported as requirements by the vacancy description (required: C#, Docker, Kubernetes, GitLab, Jenkins (+4 more)). Reclassified explicit requirement evidence: Firebird (Required to Optional), Oracle (Required to Optional). Did not treat these extracted skills as role-defining without core-responsibility evidence: C#, Docker, Kubernetes, AWS, Microservices.",
+                        "matchedSkills":  [
+
+                                          ],
+                        "missingRequiredSkills":  [
+                                                      "ElasticSearch",
+                                                      "OpenSearch"
+                                                  ],
+                        "missingOptionalSkills":  [
+                                                      "Firebird",
+                                                      "Oracle"
+                                                  ]
+                    },
+                    {
+                        "source":  "LinkedIn",
+                        "externalId":  "4487735427",
+                        "title":  "Senior .Net Framework Backend Developer",
+                        "company":  "Logifuture",
+                        "location":  "Belgrade, Serbia",
+                        "originalUrl":  "https://www.linkedin.com/jobs/view/4487735427",
+                        "publishedAt":  "2026-11-05T00:00:00+00:00",
+                        "rating":  1,
+                        "evaluationStatus":  "succeeded",
+                        "explanation":  "Not suitable: none of the required technologies are listed in the candidate profile. Required technologies not listed: Microsoft .NET Framework 4.7/4.8, Microsoft SQL Server, Redis, Azure Devops, RESTful API services, Grafana. Did not treat these extracted skills as role-defining without core-responsibility evidence: Microsoft .NET Framework 4.7/4.8, Microsoft SQL Server, Redis.",
+                        "matchedSkills":  [
+
+                                          ],
+                        "missingRequiredSkills":  [
+                                                      "Microsoft .NET Framework 4.7/4.8",
+                                                      "Microsoft SQL Server",
+                                                      "Redis",
+                                                      "Azure Devops",
+                                                      "RESTful API services",
+                                                      "Grafana"
+                                                  ],
+                        "missingOptionalSkills":  [
+                                                      "Microsoft .NET 8"
+                                                  ]
+                    }
+                ]
+}

@@ -9,7 +9,7 @@ public sealed class JobMatchingPromptTests
     [Fact]
     public void SystemInstructions_RequireExplicitMandatoryLanguageEvidence()
     {
-        Assert.Equal("job-match-simple-v4", JobMatchingPrompt.Version);
+        Assert.Equal("job-match-simple-v5", JobMatchingPrompt.Version);
         Assert.Contains("Never assume English", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("Use minimumLevel null", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("Use native only when native proficiency is explicitly required", JobMatchingPrompt.SystemInstructions);
@@ -21,7 +21,8 @@ public sealed class JobMatchingPromptTests
     {
         Assert.Contains("explicitly calls it required or mandatory", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("optional, preferred, useful, a bonus, or nice-to-have", JobMatchingPrompt.SystemInstructions);
-        Assert.Contains("generic work practices such as code review", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("generic engineering practices such as code review", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("company systems, past projects, or general background", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("explicitly described as irrelevant", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("must not appear in both", JobMatchingPrompt.SystemInstructions);
     }
@@ -31,7 +32,8 @@ public sealed class JobMatchingPromptTests
     {
         Assert.Contains("main specialization or essential technical purpose", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("must be a subset of requiredSkills", JobMatchingPrompt.SystemInstructions);
-        Assert.Contains("SQL or Docker", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("Core skills are not every required skill", JobMatchingPrompt.SystemInstructions);
+        Assert.Contains("primary technical responsibilities", JobMatchingPrompt.SystemInstructions);
         Assert.Contains("Do not infer coreRequiredSkills from the job title", JobMatchingPrompt.SystemInstructions);
     }
 

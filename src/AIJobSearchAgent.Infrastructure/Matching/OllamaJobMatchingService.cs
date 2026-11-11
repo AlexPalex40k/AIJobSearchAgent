@@ -16,7 +16,7 @@ public sealed class OllamaJobMatchingService(
     HttpClient httpClient,
     IOptions<OllamaOptions> options,
     JobMatchCalculator calculator,
-    ILogger<OllamaJobMatchingService> logger) : IJobMatchingService
+    ILogger<OllamaJobMatchingService> logger) : IJobMatchingService, IJobMatchingDiagnosticsService
 {
     private static readonly JsonElement ResponseSchema = CreateResponseSchema();
     private static readonly JsonSerializerOptions EnvelopeSerializerOptions = new(JsonSerializerDefaults.Web);
@@ -33,6 +33,12 @@ public sealed class OllamaJobMatchingService(
     public string PromptVersion => JobMatchingPrompt.Version;
 
     public async Task<JobMatchResult> EvaluateAsync(
+        JobVacancy vacancy,
+        CandidateProfile profile,
+        CancellationToken cancellationToken) =>
+        (await EvaluateWithDiagnosticsAsync(vacancy, profile, cancellationToken)).Result;
+
+    public async Task<JobMatchWithDiagnosticsResult> EvaluateWithDiagnosticsAsync(
         JobVacancy vacancy,
         CandidateProfile profile,
         CancellationToken cancellationToken)
@@ -89,8 +95,11 @@ public sealed class OllamaJobMatchingService(
             }
 
             ValidateOutput(output, configuredModel);
+            var rawRequiredSkills = output!.RequiredSkills!.Select(skill => skill!).ToArray();
+            var rawOptionalSkills = output.OptionalSkills!.Select(skill => skill!).ToArray();
+            var rawCoreSkills = output.CoreRequiredSkills!.Select(skill => skill!).ToArray();
             var requirements = new ExtractedJobRequirements(
-                NormalizeSkills(output!.RequiredSkills!),
+                NormalizeSkills(output.RequiredSkills!),
                 NormalizeSkills(output.OptionalSkills!),
                 output.HasClearRequirements,
                 output.MinimumYearsProfessionalExperience,
@@ -113,7 +122,7 @@ public sealed class OllamaJobMatchingService(
                 ? calculation.Explanation
                 : $"{calculation.Explanation} {transparencyExplanation}";
 
-            return new JobMatchResult(
+            var result = new JobMatchResult(
                 calculation.Rating,
                 calculation.MatchedSkills,
                 calculation.MissingRequiredSkills,
@@ -122,6 +131,40 @@ public sealed class OllamaJobMatchingService(
                 string.IsNullOrWhiteSpace(ollamaResponse.Model) ? configuredModel : ollamaResponse.Model,
                 JobMatchingPrompt.Version,
                 DateTimeOffset.UtcNow);
+            var candidateSkills = profile.TechnicalSkills
+                .Where(skill => !string.IsNullOrWhiteSpace(skill.Name))
+                .Select(skill => skill.Name.Trim())
+                .ToArray();
+            var normalizedMatches = verification.VerifiedRequirements.RequiredSkills
+                .Concat(verification.VerifiedRequirements.OptionalSkills)
+                .Select(requirement => new
+                {
+                    Requirement = requirement,
+                    Candidate = TechnicalSkillMatcher.FindMatchingCandidate(requirement, candidateSkills)
+                })
+                .Where(match => match.Candidate is not null)
+                .Select(match => new NormalizedSkillMatch(
+                    match.Requirement,
+                    match.Candidate!,
+                    TechnicalSkillMatcher.Normalize(match.Requirement),
+                    TechnicalSkillMatcher.Normalize(match.Candidate!)))
+                .ToArray();
+            var diagnostics = new JobMatchingDiagnostics(
+                rawRequiredSkills,
+                rawOptionalSkills,
+                rawCoreSkills,
+                verification.VerifiedRequirements.RequiredSkills,
+                verification.VerifiedRequirements.OptionalSkills,
+                verification.VerifiedRequirements.CoreRequiredSkills,
+                verification.UnverifiedRequiredSkills,
+                verification.UnverifiedOptionalSkills,
+                verification.RejectedCoreSkills,
+                verification.ReclassifiedSkills,
+                normalizedMatches,
+                calculation.Rating,
+                explanation);
+
+            return new JobMatchWithDiagnosticsResult(result, diagnostics);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

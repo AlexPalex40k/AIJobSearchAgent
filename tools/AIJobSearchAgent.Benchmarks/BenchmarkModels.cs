@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using AIJobSearchAgent.Application.Models;
 using AIJobSearchAgent.Domain.Entities;
 
 namespace AIJobSearchAgent.Benchmarks;
@@ -87,6 +88,8 @@ public sealed class BenchmarkCaseResult
     public required IReadOnlyList<string> MatchedSkills { get; init; }
     public required IReadOnlyList<string> MissingRequiredSkills { get; init; }
     public required IReadOnlyList<string> MissingOptionalSkills { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public JobMatchingDiagnostics? MatchingDiagnostics { get; init; }
     public required double LatencyMilliseconds { get; init; }
     public string? ErrorMessage { get; init; }
 }

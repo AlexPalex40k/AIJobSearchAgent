@@ -37,17 +37,36 @@ public sealed class BenchmarkRunner(IJobMatchingService matchingService)
 
             try
             {
-                var match = await matchingService.EvaluateAsync(
-                    vacancy,
-                    profileSnapshot.Profile,
-                    cancellationToken);
+                JobMatchResult match;
+                JobMatchingDiagnostics? diagnostics = null;
+                if (matchingService is IJobMatchingDiagnosticsService diagnosticsService)
+                {
+                    var diagnosticResult = await diagnosticsService.EvaluateWithDiagnosticsAsync(
+                        vacancy,
+                        profileSnapshot.Profile,
+                        cancellationToken);
+                    match = diagnosticResult.Result;
+                    diagnostics = diagnosticResult.Diagnostics;
+                }
+                else
+                {
+                    match = await matchingService.EvaluateAsync(
+                        vacancy,
+                        profileSnapshot.Profile,
+                        cancellationToken);
+                }
+
                 stopwatch.Stop();
                 if (match.Rating is < 1 or > 5)
                 {
                     throw new InvalidOperationException("The matching service returned an out-of-range rating.");
                 }
 
-                results.Add(CreateSuccessfulResult(benchmarkCase, match, stopwatch.Elapsed.TotalMilliseconds));
+                results.Add(CreateSuccessfulResult(
+                    benchmarkCase,
+                    match,
+                    diagnostics,
+                    stopwatch.Elapsed.TotalMilliseconds));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -128,6 +147,7 @@ public sealed class BenchmarkRunner(IJobMatchingService matchingService)
     private static BenchmarkCaseResult CreateSuccessfulResult(
         BenchmarkCase benchmarkCase,
         JobMatchResult match,
+        JobMatchingDiagnostics? diagnostics,
         double latencyMilliseconds) => new()
         {
             CaseId = benchmarkCase.Id,
@@ -145,6 +165,7 @@ public sealed class BenchmarkRunner(IJobMatchingService matchingService)
             MatchedSkills = match.MatchedSkills,
             MissingRequiredSkills = match.MissingRequiredSkills,
             MissingOptionalSkills = match.MissingOptionalSkills,
+            MatchingDiagnostics = diagnostics,
             LatencyMilliseconds = latencyMilliseconds
         };
 

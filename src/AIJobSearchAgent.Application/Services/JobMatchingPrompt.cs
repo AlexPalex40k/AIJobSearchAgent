@@ -5,7 +5,7 @@ namespace AIJobSearchAgent.Application.Services;
 
 public static class JobMatchingPrompt
 {
-    public const string Version = "job-match-simple-v4";
+    public const string Version = "job-match-simple-v5";
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -22,11 +22,14 @@ public static class JobMatchingPrompt
         Extraction rules:
         - requiredSkills contains only technologies, tools, programming languages, databases, frameworks, libraries, and platforms required by the role.
         - Classify a technology as required when the vacancy explicitly calls it required or mandatory. A technology clearly necessary for the stated core development responsibilities may also be required without that literal wording.
+        - Treat headings and sentence meaning as evidence: items in Requirements, Required Skills, Must Have, or equivalent sections are required unless the text says otherwise.
+        - A responsibility makes a technology required only when performing that responsibility actually depends on using it, such as building and operating Kubernetes clusters. Merely mentioning a company system or environment does not make every technology in it a candidate requirement.
         - coreRequiredSkills contains only the requiredSkills that define the role's main specialization or essential technical purpose. It must be a subset of requiredSkills.
-        - Do not put generic supporting technologies such as SQL or Docker in coreRequiredSkills by default. Include them only when they define the role's main specialization or essential technical purpose.
+        - Core skills are not every required skill. Do not put generic supporting tools, every cloud service, or every item from a long requirements list in coreRequiredSkills. Include a technology only when the description connects it to the role's primary technical responsibilities.
         - Do not infer coreRequiredSkills from the job title. Use an empty array when reliable core technologies cannot be identified from the description.
         - optionalSkills contains only technologies explicitly described as optional, preferred, useful, a bonus, or nice-to-have.
-        - Do not classify general professional experience, years of experience, leadership, responsibilities, or generic work practices such as code review as technologies.
+        - Technologies that appear only as examples, possible choices, descriptions of company systems, past projects, or general background are context. Omit contextual technologies from both requiredSkills and optionalSkills.
+        - Do not classify general professional experience, years of experience, leadership, responsibilities, soft skills, or generic engineering practices such as code review, clean code, or SOLID principles as technologies.
         - Do not include a technology explicitly described as irrelevant, not required, not used, or outside the role.
         - Return the specific technology name without qualifiers such as Advanced, Strong knowledge of, or Experience with.
         - A technology must not appear in both requiredSkills and optionalSkills.
@@ -39,6 +42,13 @@ public static class JobMatchingPrompt
         - Use minimumLevel null when a language is mandatory but no supported level is explicitly specified.
         - Use native only when native proficiency is explicitly required. Professional, working proficiency, and fluent do not automatically mean native.
         - Use empty arrays when a category is absent. Do not include evidence quotations or candidate assumptions.
+
+        Classification examples:
+        - "Strong experience with C# is required" means C# is required.
+        - "Experience with Docker is a plus" means Docker is optional.
+        - "Our infrastructure includes Kubernetes" is context and does not by itself make Kubernetes required or optional.
+        - "Participate in code reviews" is a responsibility, not a technical skill.
+        - "Build and operate Kubernetes clusters" makes Kubernetes required because it is essential to the stated responsibility.
         """;
 
     public static string CreateUserMessage(

@@ -26,8 +26,8 @@ public sealed class JobMatchCalculator
 
         var candidateSkills = profile.TechnicalSkills
             .Where(skill => !string.IsNullOrWhiteSpace(skill.Name))
-            .Select(skill => TechnicalSkillMatcher.Normalize(skill.Name))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .Select(skill => skill.Name.Trim())
+            .ToArray();
         var requiredSkills = NormalizeRequirements(requirements.RequiredSkills);
         var requiredKeys = requiredSkills.Select(skill => skill.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var coreRequiredSkills = NormalizeRequirements(requirements.CoreRequiredSkills)
@@ -37,13 +37,22 @@ public sealed class JobMatchCalculator
             .Where(skill => !requiredKeys.Contains(skill.Key))
             .ToArray();
 
-        var matchedRequired = requiredSkills.Where(skill => candidateSkills.Contains(skill.Key)).ToArray();
-        var missingRequired = requiredSkills.Where(skill => !candidateSkills.Contains(skill.Key)).ToArray();
-        var matchedOptional = optionalSkills.Where(skill => candidateSkills.Contains(skill.Key)).ToArray();
-        var missingOptional = optionalSkills.Where(skill => !candidateSkills.Contains(skill.Key)).ToArray();
+        var matchedRequired = requiredSkills
+            .Where(skill => TechnicalSkillMatcher.FindMatchingCandidate(skill.DisplayName, candidateSkills) is not null)
+            .ToArray();
+        var missingRequired = requiredSkills
+            .Where(skill => TechnicalSkillMatcher.FindMatchingCandidate(skill.DisplayName, candidateSkills) is null)
+            .ToArray();
+        var matchedOptional = optionalSkills
+            .Where(skill => TechnicalSkillMatcher.FindMatchingCandidate(skill.DisplayName, candidateSkills) is not null)
+            .ToArray();
+        var missingOptional = optionalSkills
+            .Where(skill => TechnicalSkillMatcher.FindMatchingCandidate(skill.DisplayName, candidateSkills) is null)
+            .ToArray();
         var hasCoreStackMismatch = requirements.HasClearRequirements &&
             coreRequiredSkills.Length > 0 &&
-            coreRequiredSkills.All(skill => !candidateSkills.Contains(skill.Key));
+            coreRequiredSkills.All(skill =>
+                TechnicalSkillMatcher.FindMatchingCandidate(skill.DisplayName, candidateSkills) is null);
 
         var rating = hasCoreStackMismatch
             ? 1
@@ -191,23 +200,23 @@ public sealed class JobMatchCalculator
         }
         else if (hasCoreStackMismatch)
         {
-            parts.Add($"Not suitable: none of the role-defining core technologies are present. Missing core required skills: {string.Join(", ", coreRequiredSkills)}.");
+            parts.Add($"Not suitable: none of the role-defining core technologies are listed in the candidate profile. Core required technologies not listed: {string.Join(", ", coreRequiredSkills)}.");
         }
         else if (missingRequired.Count == matchedRequired.Count + missingRequired.Count)
         {
-            parts.Add($"Not suitable: none of the required technical skills are present. Missing required skills: {string.Join(", ", missingRequired)}.");
+            parts.Add($"Not suitable: none of the required technologies are listed in the candidate profile. Required technologies not listed: {string.Join(", ", missingRequired)}.");
         }
         else if (missingRequired.Count > 0)
         {
-            parts.Add($"Partial match: matched required skills: {string.Join(", ", matchedRequired)}; missing required skills: {string.Join(", ", missingRequired)}.");
+            parts.Add($"Partial match: matched required technologies: {string.Join(", ", matchedRequired)}; required technologies not listed in the candidate profile: {string.Join(", ", missingRequired)}.");
         }
         else if (missingOptional.Count > 0)
         {
-            parts.Add($"Good match: all required technical skills are present; missing optional skills: {string.Join(", ", missingOptional)}.");
+            parts.Add($"Good match: all required technologies are listed; optional technologies not listed in the candidate profile: {string.Join(", ", missingOptional)}.");
         }
         else
         {
-            parts.Add("Excellent technical match: all required and optional technical skills are present.");
+            parts.Add("Excellent technical match: all required and optional technologies are listed in the candidate profile.");
         }
 
         if (languageAssessment.ConfirmedMismatches.Count > 0)

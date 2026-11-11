@@ -11,3 +11,4 @@ Data/*.db-wal
 !.gitkeep
 /candidate-profile.json
 /benchmarks/results/
+/linkedin-spike-results/

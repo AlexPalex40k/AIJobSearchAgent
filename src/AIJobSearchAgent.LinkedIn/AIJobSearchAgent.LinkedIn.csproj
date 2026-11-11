@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="AngleSharp" Version="1.9.1" />
+    <PackageReference Include="Selenium.Support" Version="4.38.0" />
+    <PackageReference Include="Selenium.WebDriver" Version="4.38.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\AccessRestrictionDetector.cs" Link="AccessRestrictionDetector.cs" />
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\Diagnostics.cs" Link="Diagnostics.cs" />
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\LinkedInDetailsPaneParser.cs" Link="LinkedInDetailsPaneParser.cs" />
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\LinkedInHtmlParser.cs" Link="LinkedInHtmlParser.cs" />
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\PopupDiagnosticTracker.cs" Link="PopupDiagnosticTracker.cs" />
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\SeleniumExperiment.cs" Link="SeleniumExperiment.cs" />
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\SeleniumLoginPopupHandler.cs" Link="SeleniumLoginPopupHandler.cs" />
+    <Compile Include="..\..\tools\AIJobSearchAgent.LinkedInSpike\SeleniumPageClassifier.cs" Link="SeleniumPageClassifier.cs" />
+  </ItemGroup>
+</Project>

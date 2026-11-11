@@ -2,6 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AIJobSearchAgent.Application\AIJobSearchAgent.Application.csproj" />
     <ProjectReference Include="..\AIJobSearchAgent.Domain\AIJobSearchAgent.Domain.csproj" />
+    <ProjectReference Include="..\AIJobSearchAgent.LinkedIn\AIJobSearchAgent.LinkedIn.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.14" />
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.14" />

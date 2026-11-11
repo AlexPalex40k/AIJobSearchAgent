@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using AIJobSearchAgent.LinkedInSpike;
 
 namespace AIJobSearchAgent.Infrastructure;
 
@@ -36,6 +37,18 @@ public static class DependencyInjection
             client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AIJobSearchAgent/1.0");
         });
+
+        services.AddOptions<LinkedInOptions>()
+            .Bind(configuration.GetSection(LinkedInOptions.SectionName));
+        services.AddTransient<LinkedInHtmlParser>();
+        services.AddTransient<AccessRestrictionDetector>();
+        services.AddTransient<SeleniumExperiment>();
+        services.AddTransient<ILinkedInSearchScraper, LinkedInSeleniumSearchScraper>();
+        services.AddScoped<LinkedInJobProvider>(serviceProvider => new LinkedInJobProvider(
+            serviceProvider.GetRequiredService<ILinkedInSearchScraper>(),
+            serviceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<LinkedInJobProvider>>()));
+        services.AddScoped<ILinkedInJobProvider>(serviceProvider =>
+            serviceProvider.GetRequiredService<LinkedInJobProvider>());
 
         services.AddOptions<CandidateProfileOptions>()
             .Bind(configuration.GetSection(CandidateProfileOptions.SectionName))

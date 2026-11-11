@@ -448,9 +448,34 @@ dotnet test AIJobSearchAgent.sln
 
 Coverage includes Phase 1 collection behavior plus candidate profile validation, stable profile hashing, deterministic ratings, core-stack handling and aliases, conservative experience and language handling, Ollama structured-output deserialization and validation, timeout/error handling, cancellation propagation, untrusted vacancy content boundaries, additive migration safety, and evaluation persistence. Tests use mocked Ollama responses and never require a running local model.
 
-## LinkedIn feasibility spike
+## LinkedIn provider and diagnostic
 
-The isolated diagnostic under `tools/AIJobSearchAgent.LinkedInSpike` compares direct public HTML inspection with a visible Selenium browser. It is not wired into `IJobProvider` and never writes to SQLite or calls Ollama. See the [spike README](tools/AIJobSearchAgent.LinkedInSpike/README.md) for commands, browser setup, safety restrictions, and interpretation guidance.
+`LinkedInJobProvider` reuses the bounded Selenium extraction proven by the standalone diagnostic. Shared browser, parser, popup, access-restriction, card-selection, and details-pane logic is compiled by `src/AIJobSearchAgent.LinkedIn` and consumed by both Infrastructure and `tools/AIJobSearchAgent.LinkedInSpike`; the selectors are not duplicated. The existing default `IJobProvider` remains Arbeitnow, while `ILinkedInJobProvider` selects LinkedIn independently.
+
+The initial LinkedIn integration is a Development-only, read-only operation. It returns vacancies and diagnostic metadata in memory, never writes them to SQLite, and never invokes Ollama:
+
+```powershell
+$body = @{
+  jobTitle = '.NET'
+  location = 'Serbia'
+  publishedWithinDays = 7
+  maxJobs = 10
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri 'http://localhost:5091/api/linkedin/search' `
+  -ContentType 'application/json' `
+  -Body $body
+```
+
+`jobTitle` and `location` are required and limited to 100 characters. `publishedWithinDays` accepts `1`, `7`, or `null`; `maxJobs` accepts `1` through `10`; an optional numeric `geoId` can disambiguate a LinkedIn location. The application constructs the `https://www.linkedin.com/jobs/search` URL itself and does not accept arbitrary navigation URLs.
+
+Chrome or Chromium must be installed. Selenium Manager resolves a compatible ChromeDriver when possible. The browser is visible and maximized by default; local configuration may set `JobProviders:LinkedIn:BrowserBinaryPath` or `JobProviders:LinkedIn:Headless`. Browser creation occurs only when the LinkedIn endpoint is called. The endpoint returns `404` outside the Development environment.
+
+Results can be partial because LinkedIn content is dynamic and may be limited by login prompts, virtualization, markup changes, or active access restrictions. The provider retains identifiable cards when descriptions are unavailable, reports restrictions and limitations, and never attempts login, CAPTCHA solving, rate-limit bypasses, or other circumvention. `IsRemote` remains `false` unless future source data provides an explicit reliable remote-work signal. A live search is a manual authorized diagnostic, not part of automated tests and not a production scraping claim.
+
+The standalone tool still compares direct public HTML inspection with the visible Selenium workflow. See the [spike README](tools/AIJobSearchAgent.LinkedInSpike/README.md) for its CLI, safety restrictions, and diagnostic interpretation.
 
 ## Provider behavior and limitations
 
@@ -458,7 +483,7 @@ The implementation uses Arbeitnow's documented free endpoint: `https://www.arbei
 
 Additional limitations:
 
-- Only Arbeitnow is configured.
+- Arbeitnow remains the default import provider; LinkedIn is available only through its explicit Development search endpoint in this iteration.
 - Keyword matching is literal substring matching, not stemming or semantic search.
 - SQLite's local database is intended for a single application instance; the unique constraint still protects against duplicate imports.
 - Imported data is only as complete and current as the upstream response.

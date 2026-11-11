@@ -24,22 +24,22 @@ public sealed class LinkedInController(
             return NotFound();
         }
 
-        if (string.IsNullOrWhiteSpace(request.JobTitle))
+        var jobTitle = request.JobTitle?.Trim();
+        if (string.IsNullOrWhiteSpace(jobTitle))
         {
             ModelState.AddModelError(nameof(request.JobTitle), "Job title is required.");
         }
-
-        if (string.IsNullOrWhiteSpace(request.Location))
-        {
-            ModelState.AddModelError(nameof(request.Location), "Location is required.");
-        }
-
-        if (request.JobTitle.Trim().Length > 100)
+        else if (jobTitle.Length > 100)
         {
             ModelState.AddModelError(nameof(request.JobTitle), "Job title must not exceed 100 characters.");
         }
 
-        if (request.Location.Trim().Length > 100)
+        var location = request.Location?.Trim();
+        if (string.IsNullOrWhiteSpace(location))
+        {
+            ModelState.AddModelError(nameof(request.Location), "Location is required.");
+        }
+        else if (location.Length > 100)
         {
             ModelState.AddModelError(nameof(request.Location), "Location must not exceed 100 characters.");
         }
@@ -64,13 +64,13 @@ public sealed class LinkedInController(
 
         if (!ModelState.IsValid)
         {
-            return ValidationProblem(ModelState);
+            return BadRequest(new ValidationProblemDetails(ModelState));
         }
 
         var result = await provider.SearchWithDiagnosticsAsync(
             new LinkedInJobSearchCriteria(
-                request.JobTitle.Trim(),
-                request.Location.Trim(),
+                jobTitle!,
+                location!,
                 request.PublishedWithinDays,
                 request.MaxJobs,
                 geoId),
